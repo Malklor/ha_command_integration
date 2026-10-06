@@ -344,8 +344,12 @@ def build_stand_subview(cam):
                         "name": p.get("time_str", "Recent"),
                         "label": "✨ 🦌 VERIFIED BUCK HIT" if is_buck else "📷 Animal Capture",
                         "tap_action": {
-                            "action": "url",
-                            "url_path": view_url
+                            "action": "call-service",
+                            "service": "input_text.set_value",
+                            "service_data": {
+                                "entity_id": "input_text.stealthcam_tag_action",
+                                "value": guid
+                            }
                         },
                         "styles": {
                             "card": [
@@ -386,8 +390,12 @@ def build_stand_subview(cam):
                         "show_name": True,
                         "show_icon": False,
                         "tap_action": {
-                            "action": "url",
-                            "url_path": tag_url
+                            "action": "call-service",
+                            "service": "input_text.set_value",
+                            "service_data": {
+                                "entity_id": "input_text.stealthcam_tag_action",
+                                "value": guid
+                            }
                         },
                         "styles": {
                             "card": [

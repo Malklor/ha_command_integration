@@ -333,6 +333,8 @@ def build_stand_subview(cam):
         )
     }
 
+    cam_entity = cam.get("native_entity", f"camera.stealthcam_{slug}")
+
     # 3. Visual Photo Thumbnail Gallery Grid (Tap photo for Fullscreen • Button for Buck Tagging)
     gallery_cards = []
     if photos:
@@ -346,13 +348,13 @@ def build_stand_subview(cam):
                 "cards": [
                     {
                         "type": "custom:button-card",
-                        "entity": f"camera.stealthcam_{slug}",
+                        "entity": cam_entity,
                         "show_entity_picture": True,
                         "show_name": True,
                         "show_label": True,
                         "entity_picture": thumb_url,
                         "name": p.get("time_str", "Recent"),
-                        "label": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '✨ 🦌 VERIFIED BUCK HIT' : '📷 Tap for Fullscreen Popup'; ]]]",
+                        "label": f"[[[ var photos = (states['{cam_entity}'] && states['{cam_entity}'].attributes.recent_photos) || (states['camera.stealthcam_{slug}'] && states['camera.stealthcam_{slug}'].attributes.recent_photos) || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '✨ 🦌 VERIFIED BUCK HIT' : '📷 Tap for Fullscreen Preview'; ]]]",
                         "tap_action": {
                             "action": "more-info"
                         },
@@ -361,10 +363,10 @@ def build_stand_subview(cam):
                                 {"border-radius": "10px 10px 0 0"},
                                 {"overflow": "hidden"},
                                 {"padding": "0"},
-                                {"border": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '2.5px solid #f39c12' : '1.5px solid rgba(82, 148, 226, 0.35)'; ]]]"},
+                                {"border": f"[[[ var photos = (states['{cam_entity}'] && states['{cam_entity}'].attributes.recent_photos) || (states['camera.stealthcam_{slug}'] && states['camera.stealthcam_{slug}'].attributes.recent_photos) || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '2.5px solid #f39c12' : '1.5px solid rgba(82, 148, 226, 0.35)'; ]]]"},
                                 {"border-bottom": "none"},
                                 {"background": "var(--card-background-color, #1c1c1e)"},
-                                {"box-shadow": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '0 0 12px rgba(243, 156, 18, 0.45)' : 'none'; ]]]"},
+                                {"box-shadow": f"[[[ var photos = (states['{cam_entity}'] && states['{cam_entity}'].attributes.recent_photos) || (states['camera.stealthcam_{slug}'] && states['camera.stealthcam_{slug}'].attributes.recent_photos) || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '0 0 12px rgba(243, 156, 18, 0.45)' : 'none'; ]]]"},
                                 {"cursor": "pointer"}
                             ],
                             "entity_picture": [
@@ -383,7 +385,7 @@ def build_stand_subview(cam):
                             "label": [
                                 {"font-size": "11px"},
                                 {"font-weight": "700"},
-                                {"color": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '#f39c12' : '#70a5eb'; ]]]"},
+                                {"color": f"[[[ var photos = (states['{cam_entity}'] && states['{cam_entity}'].attributes.recent_photos) || (states['camera.stealthcam_{slug}'] && states['camera.stealthcam_{slug}'].attributes.recent_photos) || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '#f39c12' : '#70a5eb'; ]]]"},
                                 {"padding": "2px 8px 6px 8px"},
                                 {"text-align": "left"}
                             ]
@@ -391,8 +393,8 @@ def build_stand_subview(cam):
                     },
                     {
                         "type": "custom:button-card",
-                        "entity": f"camera.stealthcam_{slug}",
-                        "name": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '🦌 Verified Buck (Tap to Untag)' : '🦌 Mark as Buck'; ]]]",
+                        "entity": cam_entity,
+                        "name": f"[[[ var photos = (states['{cam_entity}'] && states['{cam_entity}'].attributes.recent_photos) || (states['camera.stealthcam_{slug}'] && states['camera.stealthcam_{slug}'].attributes.recent_photos) || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '🦌 Verified Buck (Tap to Untag)' : '🦌 Mark as Buck'; ]]]",
                         "show_name": True,
                         "show_icon": False,
                         "tap_action": {

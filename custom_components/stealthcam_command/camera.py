@@ -34,9 +34,18 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
+SIMPSON_ICONS = {
+    "homer": "mdi:donut",
+    "bart": "mdi:skateboard",
+    "lisa": "mdi:saxophone",
+    "maggie": "mdi:pacifier",
+    "marge": "mdi:necklace",
+    "santas_helper": "mdi:dog-side",
+}
+
+
 class StealthCamLatestPhotoCamera(CoordinatorEntity, Camera):
     """Camera entity representing the latest photo captured by Stealth Cam."""
-    _attr_icon = "mdi:cctv"
 
     def __init__(
         self,
@@ -51,6 +60,12 @@ class StealthCamLatestPhotoCamera(CoordinatorEntity, Camera):
         self.pdi = pdi
         self._attr_unique_id = f"{pdi}_camera"
         self._attr_name = f"{camera_name} Trail Cam"
+
+    @property
+    def icon(self) -> str:
+        """Return custom character icon for the camera."""
+        slug = slugify(self.camera_name)
+        return SIMPSON_ICONS.get(slug, "mdi:cctv")
 
     @property
     def camera_data(self) -> Dict[str, Any]:

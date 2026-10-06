@@ -133,26 +133,29 @@ def make_cam_card(cam):
 def build_trail_cams_view():
     cards = []
 
-    # 1. Hunting Intelligence Summary Card (Responsive markdown)
+    # 1. Hunting Intelligence Summary Card (Dynamic live Jinja2 template)
     cards.append({
         "type": "markdown",
         "title": "🎯 Stand Hunting Intelligence & Wind Matrix",
         "content": (
-            "### 🏆 Recommended Stand: **HOMER / MAGGIE RUN**\n"
-            "- 🦌 **Recent Antlered Activity:** 2 Verified Buck Hits at Homer Stand\n"
-            "- ⏰ **Peak Movement:** Dawn Transitions (04:45 - 07:15 AM)\n"
-            "- 🌔 **Moon:** Waxing Crescent | 🌡️ **Field Temp:** ~58°F\n\n"
+            "### 🏆 Recommended Stand: **{{ states('sensor.stealthcam_hunt_recommendation') }}**\n"
+            "- 🦌 **Recent Antlered Activity:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'buck_hits') | default(0) }} Verified Buck Hits\n"
+            "- ⏰ **Peak Movement Window:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'peak_window') | default('Dawn') }}\n"
+            "- 🌔 **Moon Phase:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'moon_phase') | default('Waxing Crescent') }} | 🌡️ **Field Temp:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'current_temp') | default(58) }}°F\n\n"
             "---\n\n"
-            "### 🧭 Stand Scent & Wind Direction (Live: 5.0 mph SSW)\n"
-            "- 🟢 **Homer (43° NE):** **Favorable** (Headwind • Scent Clear)\n"
-            "- 🟢 **Santa's Helper (356° N):** **Favorable** (Headwind • Scent Clear)\n"
-            "- 🟢 **Lisa (329° NNW):** **Favorable** (Headwind • Scent Clear)\n"
-            "- 🟡 **Maggie (297° WNW):** **Marginal** (Crosswind Draft)\n"
-            "- 🟡 **Marge (89° E):** **Marginal** (Crosswind Draft)\n"
-            "- 🔴 **Bart (177° S):** **Unfavorable** (Tailwind • Downwind Risk)\n\n"
+            "### 🧭 Stand Scent & Wind Direction (Live: {{ state_attr('sensor.stealthcam_stand_wind_matrix', 'wind_speed_mph') }} mph {{ state_attr('sensor.stealthcam_stand_wind_matrix', 'wind_cardinal') }})\n"
+            "{% set d = state_attr('sensor.stealthcam_stand_wind_matrix', 'stand_details') %}\n"
+            "{% if d %}\n"
+            "- {{ d.get('HOMER', {}).get('status', '🟢 Favorable') }} **Homer ({{ d.get('HOMER', {}).get('heading', '43°') }})**\n"
+            "- {{ d.get(\"SANTA'S HELPER\", {}).get('status', '🟢 Favorable') }} **Santa's Helper ({{ d.get(\"SANTA'S HELPER\", {}).get('heading', '356°') }})**\n"
+            "- {{ d.get('LISA', {}).get('status', '🟢 Favorable') }} **Lisa ({{ d.get('LISA', {}).get('heading', '329°') }})**\n"
+            "- {{ d.get('MAGGIE', {}).get('status', '🟡 Marginal') }} **Maggie ({{ d.get('MAGGIE', {}).get('heading', '297°') }})**\n"
+            "- {{ d.get('MARGE', {}).get('status', '🟡 Marginal') }} **Marge ({{ d.get('MARGE', {}).get('heading', '89°') }})**\n"
+            "- {{ d.get('BART', {}).get('status', '🔴 Unfavorable') }} **Bart ({{ d.get('BART', {}).get('heading', '177°') }})**\n"
+            "{% endif %}\n\n"
             "---\n\n"
-            "### 📊 Property Movement Distribution (200 Captures)\n"
-            "🌅 **Dawn (5-9 AM):** `12%` | ☀️ **Day (9 AM-4 PM):** `21%` | 🌇 **Eve (4-8 PM):** `14%` | 🌙 **Night:** `53%`"
+            "### 📊 Property Movement Distribution ({{ state_attr('sensor.stealthcam_property_movement', 'total_captures') | default(200) }} Captures)\n"
+            "🌅 **Dawn (5-9 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'morning_pct') | default(12) }}%` | ☀️ **Day (9 AM-4 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'midday_pct') | default(21) }}%` | 🌇 **Eve (4-8 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'evening_pct') | default(14) }}%` | 🌙 **Night:** `{{ state_attr('sensor.stealthcam_property_movement', 'night_pct') | default(53) }}%`"
         )
     })
 

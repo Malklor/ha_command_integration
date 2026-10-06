@@ -450,6 +450,43 @@ class HAStealthCamSyncer:
             }
         )
 
+        # 16. Dynamic Hunt Recommendation Scoring
+        best_cam_name = "HOMER"
+        best_score = -1
+        best_details = {}
+
+        for raw_name, cam in cameras.items():
+            c_name = cam.get("name", raw_name)
+            bucks = cam.get("buck_hits_count", 0)
+            morning = cam.get("morning_hits", 0)
+            evening = cam.get("evening_hits", 0)
+            w_info = wind_stand_details.get(c_name, {})
+            w_status = w_info.get("status", "")
+            w_bonus = 10 if "🟢" in w_status else (5 if "🟡" in w_status else -5)
+
+            score = (bucks * 20) + (morning * 3) + (evening * 2) + w_bonus
+            if score > best_score:
+                best_score = score
+                best_cam_name = c_name
+                best_details = {
+                    "score": score,
+                    "buck_hits": bucks,
+                    "peak_window": cam.get("peak_window", "Dawn (5-8 AM)"),
+                    "moon_phase": cam.get("moon_phase", "Waxing Crescent"),
+                    "current_temp": cam.get("temperature", 58),
+                    "wind_status": w_status,
+                }
+
+        self.post_state(
+            "sensor.stealthcam_hunt_recommendation",
+            best_cam_name,
+            {
+                "friendly_name": "Top Recommended Stand",
+                **best_details,
+                "icon": "mdi:target",
+            }
+        )
+
         _LOGGER.info("Successfully synced %d trail cameras, GPS, and hunting analytics to Home Assistant.", updated_count)
         return updated_count
 

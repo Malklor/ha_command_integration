@@ -195,6 +195,7 @@ class StealthCamLastHitSensor(StealthCamBaseEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         return {
+            # All-time movement
             "total_analyzed_captures": self.camera_data.get("total_analyzed_captures", 0),
             "buck_hits_count": self.camera_data.get("buck_hits_count", 0),
             "morning_hits": self.camera_data.get("morning_hits", 0),
@@ -202,6 +203,14 @@ class StealthCamLastHitSensor(StealthCamBaseEntity, SensorEntity):
             "night_hits": self.camera_data.get("night_hits", 0),
             "midday_hits": self.camera_data.get("midday_hits", 0),
             "peak_window": self.camera_data.get("peak_window", "Variable"),
+            # 24-hour movement
+            "captures_24h": self.camera_data.get("captures_24h_count", 0),
+            "buck_hits_24h": self.camera_data.get("buck_hits_24h", 0),
+            "morning_24h": self.camera_data.get("morning_24h", 0),
+            "evening_24h": self.camera_data.get("evening_24h", 0),
+            "night_24h": self.camera_data.get("night_24h", 0),
+            "midday_24h": self.camera_data.get("midday_24h", 0),
+            "peak_window_24h": self.camera_data.get("peak_window_24h", "Variable"),
         }
 
 
@@ -421,7 +430,17 @@ class StealthCamPropertyMovementSensor(CoordinatorEntity, SensorEntity):
         tot_e = sum(c.get("evening_hits", 0) for c in cams.values())
         tot_n = sum(c.get("night_hits", 0) for c in cams.values())
         tot = sum(c.get("total_analyzed_captures", 0) for c in cams.values()) or (tot_m + tot_mid + tot_e + tot_n) or 200
+
+        # 24-Hour metrics
+        caps_24h = sum(c.get("captures_24h_count", 0) for c in cams.values())
+        bucks_24h = sum(c.get("buck_hits_24h", 0) for c in cams.values())
+        m_24 = sum(c.get("morning_24h", 0) for c in cams.values())
+        mid_24 = sum(c.get("midday_24h", 0) for c in cams.values())
+        eve_24 = sum(c.get("evening_24h", 0) for c in cams.values())
+        nig_24 = sum(c.get("night_24h", 0) for c in cams.values())
+
         return {
+            # All-time
             "total_captures": tot,
             "morning_hits": tot_m,
             "midday_hits": tot_mid,
@@ -431,4 +450,15 @@ class StealthCamPropertyMovementSensor(CoordinatorEntity, SensorEntity):
             "midday_pct": round((tot_mid / tot) * 100) if tot else 21,
             "evening_pct": round((tot_e / tot) * 100) if tot else 14,
             "night_pct": round((tot_n / tot) * 100) if tot else 53,
+            # 24-hour
+            "captures_24h": caps_24h,
+            "buck_hits_24h": bucks_24h,
+            "morning_hits_24h": m_24,
+            "morning_pct_24h": round((m_24 / max(1, caps_24h)) * 100) if caps_24h else 0,
+            "midday_hits_24h": mid_24,
+            "midday_pct_24h": round((mid_24 / max(1, caps_24h)) * 100) if caps_24h else 0,
+            "evening_hits_24h": eve_24,
+            "evening_pct_24h": round((eve_24 / max(1, caps_24h)) * 100) if caps_24h else 0,
+            "night_hits_24h": nig_24,
+            "night_pct_24h": round((nig_24 / max(1, caps_24h)) * 100) if caps_24h else 0,
         }

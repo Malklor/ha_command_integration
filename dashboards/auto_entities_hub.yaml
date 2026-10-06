@@ -33,7 +33,15 @@ cards:
 
           ---
 
-          ### 📊 24-Hour Movement ({{ state_attr('sensor.stealthcam_property_movement', 'total_captures') | default(200) }} Captures)
+          ### ⏱️ 24-Hour Movement ({{ state_attr('sensor.stealthcam_property_movement', 'captures_24h') | default(0) }} Captures • {{ state_attr('sensor.stealthcam_property_movement', 'buck_hits_24h') | default(0) }} Bucks)
+          - 🌅 **Dawn (5–9 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'morning_pct_24h') | default(0) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'morning_hits_24h') | default(0) }} hits)
+          - ☀️ **Midday (9 AM–4 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'midday_pct_24h') | default(0) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'midday_hits_24h') | default(0) }} hits)
+          - 🌇 **Evening (4–8 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'evening_pct_24h') | default(0) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'evening_hits_24h') | default(0) }} hits)
+          - 🌙 **Night (8 PM–5 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'night_pct_24h') | default(0) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'night_hits_24h') | default(0) }} hits)
+
+          ---
+
+          ### 📊 All-Time Movement ({{ state_attr('sensor.stealthcam_property_movement', 'total_captures') | default(200) }} Captures • {{ state_attr('sensor.stealthcam_property_movement', 'buck_hits') | default(0) }} Bucks)
           - 🌅 **Dawn (5–9 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'morning_pct') | default(12) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'morning_hits') | default(0) }} hits)
           - ☀️ **Midday (9 AM–4 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'midday_pct') | default(21) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'midday_hits') | default(0) }} hits)
           - 🌇 **Evening (4–8 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'evening_pct') | default(14) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'evening_hits') | default(0) }} hits)

@@ -26,7 +26,15 @@ cards:
 
       ---
 
-      ### ⏰ 24-Hour Movement ({{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'total_analyzed_captures') | default(0) }} Captures)
+      ### ⏱️ 24-Hour Movement ({{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'captures_24h') | default(0) }} Captures)
+      - 🌅 **Dawn (5–9 AM):** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'morning_24h') | default(0) }} hits`
+      - ☀️ **Midday (9 AM–4 PM):** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'midday_24h') | default(0) }} hits`
+      - 🌇 **Evening (4–8 PM):** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'evening_24h') | default(0) }} hits`
+      - 🌙 **Night (8 PM–5 AM):** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'night_24h') | default(0) }} hits`
+
+      ---
+
+      ### 📊 All-Time Movement ({{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'total_analyzed_captures') | default(0) }} Captures)
       - 🌅 **Dawn (5–9 AM):** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'morning_hits') | default(0) }} hits`
       - ☀️ **Midday (9 AM–4 PM):** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'midday_hits') | default(0) }} hits`
       - 🌇 **Evening (4–8 PM):** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'evening_hits') | default(0) }} hits`

@@ -187,12 +187,20 @@ class StealthCamClient:
             dev_captures = captures_by_dev.get(dev_id, [])
 
             # Determine last positive hit / detection timestamp
-            last_hit_dt = None
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
+            total_hits = len(dev_captures)
             buck_hits_count = 0
             morning_hits = 0
             evening_hits = 0
             midday_hits = 0
             night_hits = 0
+
+            captures_24h_count = 0
+            buck_hits_24h = 0
+            morning_24h = 0
+            evening_24h = 0
+            midday_24h = 0
+            night_24h = 0
 
             if dev_captures:
                 last_hit_dt = dev_captures[0].get("createdDateTime") or dev_captures[0].get("uploadedTime")
@@ -212,35 +220,79 @@ class StealthCamClient:
 
             for c in dev_captures:
                 guid = c.get("imageGuid")
-                if c.get("isBuckScored") or tagged_bucks.get(guid):
+                is_buck = bool(c.get("isBuckScored") or tagged_bucks.get(guid))
+                if is_buck:
                     buck_hits_count += 1
-                cdt = c.get("createdDateTime")
+
+                cdt = c.get("createdDateTime") or c.get("uploadedTime")
+                dt_obj = None
                 if cdt:
                     try:
-                        hour = int(cdt.split("T")[1].split(":")[0])
-                        if 5 <= hour <= 8:
-                            morning_hits += 1
-                        elif 9 <= hour <= 16:
-                            midday_hits += 1
-                        elif 17 <= hour <= 20:
-                            evening_hits += 1
-                        else:
-                            night_hits += 1
+                        dt_obj = datetime.datetime.fromisoformat(cdt)
+                        if dt_obj.tzinfo is None:
+                            dt_obj = dt_obj.replace(tzinfo=datetime.timezone.utc)
                     except Exception:
-                        pass
+                        dt_obj = None
 
-            total_hits = len(dev_captures)
+                is_within_24h = False
+                if dt_obj:
+                    diff_sec = (now_utc - dt_obj).total_seconds()
+                    if 0 <= diff_sec <= 86400:
+                        is_within_24h = True
+
+                hour = dt_obj.hour if dt_obj else None
+                if hour is None and cdt and "T" in str(cdt):
+                    try:
+                        hour = int(str(cdt).split("T")[1].split(":")[0])
+                    except Exception:
+                        hour = None
+
+                if hour is not None:
+                    if 5 <= hour < 9:
+                        morning_hits += 1
+                        if is_within_24h:
+                            morning_24h += 1
+                    elif 9 <= hour < 17:
+                        midday_hits += 1
+                        if is_within_24h:
+                            midday_24h += 1
+                    elif 17 <= hour < 21:
+                        evening_hits += 1
+                        if is_within_24h:
+                            evening_24h += 1
+                    else:
+                        night_hits += 1
+                        if is_within_24h:
+                            night_24h += 1
+
+                if is_within_24h:
+                    captures_24h_count += 1
+                    if is_buck:
+                        buck_hits_24h += 1
+
             peak_window = "Variable"
             if total_hits > 0:
                 windows = [
-                    ("Morning (5-8 AM)", morning_hits),
-                    ("Evening (5-8 PM)", evening_hits),
-                    ("Night (9 PM-4 AM)", night_hits),
-                    ("Midday (9 AM-4 PM)", midday_hits),
+                    ("Dawn (5–9 AM)", morning_hits),
+                    ("Midday (9 AM–5 PM)", midday_hits),
+                    ("Evening (5–9 PM)", evening_hits),
+                    ("Night (9 PM–5 AM)", night_hits),
                 ]
                 max_w = max(windows, key=lambda x: x[1])
                 if max_w[1] > 0:
                     peak_window = f"{max_w[0]} ({round((max_w[1] / total_hits) * 100)}%)"
+
+            peak_window_24h = "Variable"
+            if captures_24h_count > 0:
+                windows_24h = [
+                    ("Dawn (5–9 AM)", morning_24h),
+                    ("Midday (9 AM–5 PM)", midday_24h),
+                    ("Evening (5–9 PM)", evening_24h),
+                    ("Night (9 PM–5 AM)", night_24h),
+                ]
+                max_w24 = max(windows_24h, key=lambda x: x[1])
+                if max_w24[1] > 0:
+                    peak_window_24h = f"{max_w24[0]} ({round((max_w24[1] / captures_24h_count) * 100)}%)"
 
             recent_photos = []
             buck_photos = []
@@ -305,7 +357,7 @@ class StealthCamClient:
                 "wind_speed": latest_img.get("wind"),
                 "wind_direction": latest_img.get("windDirection"),
                 "moon_phase": latest_img.get("moonPhase"),
-                # Hunting Statistical Breakdown
+                # Hunting Statistical Breakdown - All-Time & 24-Hour
                 "last_positive_hit": last_hit_dt,
                 "total_analyzed_captures": total_hits,
                 "buck_hits_count": buck_hits_count,
@@ -314,6 +366,13 @@ class StealthCamClient:
                 "night_hits": night_hits,
                 "midday_hits": midday_hits,
                 "peak_window": peak_window,
+                "captures_24h_count": captures_24h_count,
+                "buck_hits_24h": buck_hits_24h,
+                "morning_24h": morning_24h,
+                "evening_24h": evening_24h,
+                "night_24h": night_24h,
+                "midday_24h": midday_24h,
+                "peak_window_24h": peak_window_24h,
                 "recent_photos": recent_photos,
                 "buck_photos": buck_photos,
             }

@@ -2,7 +2,10 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/Malklor/ha_command_integration?style=for-the-badge&color=blue)](https://github.com/Malklor/ha_command_integration/releases)
+[![Validate](https://img.shields.io/github/actions/workflow/status/Malklor/ha_command_integration/hassfest.yml?label=Hassfest&style=for-the-badge)](https://github.com/Malklor/ha_command_integration/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Malklor&repository=ha_command_integration&category=integration)
 
 A native, feature-rich Home Assistant custom integration for **Stealth Cam / GSM Outdoors Command** cellular trail cameras.
 

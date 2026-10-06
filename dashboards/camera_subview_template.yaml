@@ -32,9 +32,9 @@ cards:
         title: "📊 Activity & Trends"
         content: |
           ### 🦌 Deer & Wildlife Intelligence
-          - 🦌 **Verified Bucks:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_positive_buck_hits') }} hits` *(Gold Highlight)*
-          - 🐾 **Verified Does:** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'doe_hits_count') | default(0) }} hits` *(Blue Highlight)*
-          - 🚨 **Human Activity:** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'person_hits_count') | default(0) }} detections` *(Red Alert)*
+          - 🦌 <b style="color: #f39c12;">Verified Bucks:</b> `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_positive_buck_hits') }} hits`
+          - 🐾 <b style="color: #3498db;">Verified Does:</b> `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'doe_hits_count') | default(0) }} hits`
+          - 🚨 <b style="color: #e74c3c;">Human Activity:</b> `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'person_hits_count') | default(0) }} detections`
           - 🎯 **Last Hit:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit') }}`
           - ⏰ **Peak Window:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_peak_movement_window') }}`
 

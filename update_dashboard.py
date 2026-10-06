@@ -363,12 +363,25 @@ def build_stand_subview(cam):
                         "show_label": True,
                         "entity_picture": thumb_url,
                         "name": p.get("time_str", "Recent"),
-                        "label": f"[[[ var photos = (states['camera.stealthcam_{slug}'] && states['camera.stealthcam_{slug}'].attributes.recent_photos) || (states['{cam_entity}'] && states['{cam_entity}'].attributes.recent_photos) || []; var found = photos.find(x => x.guid === '{guid}'); var buck = (found ? found.is_buck : {str(is_buck).lower()}); return buck ? '✨ 🦌 VERIFIED BUCK HIT' : '📷 Tap for Fullscreen Preview'; ]]]",
+                        "label": f"[[[ var photos = (states['camera.stealthcam_{slug}'] && states['camera.stealthcam_{slug}'].attributes.recent_photos) || (states['{cam_entity}'] && states['{cam_entity}'].attributes.recent_photos) || []; var found = photos.find(x => x.guid === '{guid}'); var buck = (found ? found.is_buck : {str(is_buck).lower()}); return buck ? '✨ 🦌 VERIFIED BUCK HIT' : '🔍 Tap for Full Photo'; ]]]",
                         "tap_action": {
-                            "action": "more-info"
+                            "action": "none"
+                        },
+                        "custom_fields": {
+                            "lightbox": (
+                                f"[[[ return `"
+                                f"<div id='lb_{guid}' style='display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.92);z-index:999999;flex-direction:column;align-items:center;justify-content:center;cursor:zoom-out;' onclick='event.stopPropagation(); this.style.display=\\\"none\\\";'>"
+                                f"  <div style='position:absolute;top:20px;right:25px;color:#fff;font-size:28px;font-weight:700;cursor:pointer;background:rgba(255,255,255,0.25);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,0.5);'>✕</div>"
+                                f"  <div style='color:#fff;font-size:18px;font-weight:700;margin-bottom:12px;text-align:center;'>🦌 {name} Stand • {p.get('time_str', 'Recent')}</div>"
+                                f"  <img src='{image_url}' style='max-width:92vw;max-height:82vh;object-fit:contain;border-radius:10px;box-shadow:0 0 35px rgba(0,0,0,0.9);border:{border_style};'/>"
+                                f"</div>"
+                                f"<div style='position:absolute;top:0;left:0;width:100%;height:100%;z-index:10;cursor:zoom-in;' onclick='event.stopPropagation(); document.getElementById(\\\"lb_{guid}\\\").style.display=\\\"flex\\\";'></div>"
+                                f"`; ]]]"
+                            )
                         },
                         "styles": {
                             "card": [
+                                {"position": "relative"},
                                 {"border-radius": "10px 10px 0 0"},
                                 {"overflow": "hidden"},
                                 {"padding": "0"},
@@ -376,7 +389,7 @@ def build_stand_subview(cam):
                                 {"border-bottom": "none"},
                                 {"background": "var(--card-background-color, #1c1c1e)"},
                                 {"box-shadow": f"[[[ var photos = (states['camera.stealthcam_{slug}'] && states['camera.stealthcam_{slug}'].attributes.recent_photos) || (states['{cam_entity}'] && states['{cam_entity}'].attributes.recent_photos) || []; var found = photos.find(x => x.guid === '{guid}'); var buck = (found ? found.is_buck : {str(is_buck).lower()}); return buck ? '0 0 14px rgba(243, 156, 18, 0.55)' : 'none'; ]]]"},
-                                {"cursor": "pointer"}
+                                {"cursor": "zoom-in"}
                             ],
                             "entity_picture": [
                                 {"width": "100%"},
@@ -397,7 +410,16 @@ def build_stand_subview(cam):
                                 {"color": f"[[[ var photos = (states['camera.stealthcam_{slug}'] && states['camera.stealthcam_{slug}'].attributes.recent_photos) || (states['{cam_entity}'] && states['{cam_entity}'].attributes.recent_photos) || []; var found = photos.find(x => x.guid === '{guid}'); var buck = (found ? found.is_buck : {str(is_buck).lower()}); return buck ? '#f39c12' : '#70a5eb'; ]]]"},
                                 {"padding": "2px 8px 6px 8px"},
                                 {"text-align": "left"}
-                            ]
+                            ],
+                            "custom_fields": {
+                                "lightbox": [
+                                    {"position": "absolute"},
+                                    {"top": "0"},
+                                    {"left": "0"},
+                                    {"width": "100%"},
+                                    {"height": "100%"}
+                                ]
+                            }
                         }
                     },
                     {

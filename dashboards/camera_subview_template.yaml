@@ -97,7 +97,7 @@ cards:
                 label: |
                   [[[
                     var tag = entity.attributes.tag || '';
-                    if (entity.attributes.is_buck || tag === 'buck') return '✨ 🦌 VERIFIED BUCK';
+                    if (entity.attributes.is_buck || tag === 'buck') return '✨ VERIFIED BUCK';
                     if (entity.attributes.is_doe || tag === 'doe') return '🦌 VERIFIED DOE';
                     if (entity.attributes.is_person || tag === 'person') return '🚨 👤 HUMAN ACTIVITY';
                     return '🔍 Tap for Photo';

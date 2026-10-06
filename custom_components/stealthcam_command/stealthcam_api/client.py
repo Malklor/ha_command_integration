@@ -333,8 +333,12 @@ class StealthCamClient:
                     tag = "buck"
                 elif isinstance(raw_tag, str):
                     tag = raw_tag.lower()
-                elif c.get("isBuckScored"):
+                elif c.get("isBuckScored") or c.get("isBuck"):
                     tag = "buck"
+                elif c.get("isDoeScored") or c.get("isDoe"):
+                    tag = "doe"
+                elif c.get("isPerson") or c.get("isHuman") or c.get("humanDetected"):
+                    tag = "person"
                 else:
                     tag = ""
                 is_buck = (tag == "buck")

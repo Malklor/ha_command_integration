@@ -80,6 +80,7 @@ class StealthCamLatestPhotoCamera(CoordinatorEntity, Camera):
             "image_url": self.camera_data.get("latest_image_url"),
             "thumbnail_url": self.camera_data.get("latest_thumb_url"),
             "image_guid": self.camera_data.get("latest_image_guid"),
+            "guid": self.camera_data.get("latest_image_guid"),
             "temperature": self.camera_data.get("temperature"),
             "pressure": self.camera_data.get("pressure"),
             "pressure_tendency": self.camera_data.get("pressure_tendency", "Steady"),
@@ -94,9 +95,13 @@ class StealthCamLatestPhotoCamera(CoordinatorEntity, Camera):
             "last_positive_hit": self.camera_data.get("last_positive_hit"),
             "total_analyzed_captures": self.camera_data.get("total_analyzed_captures", 0),
             "buck_hits_count": self.camera_data.get("buck_hits_count", 0),
+            "doe_hits_count": self.camera_data.get("doe_hits_count", 0),
+            "person_hits_count": self.camera_data.get("person_hits_count", 0),
             "peak_window": self.camera_data.get("peak_window", "Variable"),
             "recent_photos": self.camera_data.get("recent_photos", []),
             "buck_photos": self.camera_data.get("buck_photos", []),
+            "doe_photos": self.camera_data.get("doe_photos", []),
+            "person_photos": self.camera_data.get("person_photos", []),
         }
 
     def camera_image(
@@ -160,12 +165,21 @@ class StealthCamCapturePhotoCamera(CoordinatorEntity, Camera):
     def extra_state_attributes(self) -> Dict[str, Any]:
         """Return extra state attributes."""
         p = self.photo_data
+        guid = p.get("guid")
+        tag = p.get("tag", "")
+        is_buck = p.get("is_buck", (tag == "buck"))
+        is_doe = p.get("is_doe", (tag == "doe"))
+        is_person = p.get("is_person", (tag == "person"))
         return {
             "image_url": p.get("image_url"),
             "thumbnail_url": p.get("thumb_url"),
-            "image_guid": p.get("guid"),
+            "image_guid": guid,
+            "guid": guid,
             "time_str": p.get("time_str", "Recent"),
-            "is_buck": p.get("is_buck", False),
+            "tag": tag,
+            "is_buck": is_buck,
+            "is_doe": is_doe,
+            "is_person": is_person,
             "hour": p.get("hour", 0),
             "index": self.index + 1,
             "stand": self.camera_name,

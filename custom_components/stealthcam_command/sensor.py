@@ -40,6 +40,8 @@ async def async_setup_entry(
         entities.append(StealthCamLastCheckinSensor(coordinator, name, pdi, slug))
         entities.append(StealthCamLastHitSensor(coordinator, name, pdi, slug))
         entities.append(StealthCamBuckHitsSensor(coordinator, name, pdi, slug))
+        entities.append(StealthCamDoeHitsSensor(coordinator, name, pdi, slug))
+        entities.append(StealthCamPersonHitsSensor(coordinator, name, pdi, slug))
         entities.append(StealthCamPeakWindowSensor(coordinator, name, pdi, slug))
         entities.append(StealthCamLocationSensor(coordinator, name, pdi, slug))
         
@@ -195,17 +197,22 @@ class StealthCamLastHitSensor(StealthCamBaseEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         return {
-            # All-time movement
+            # All-time movement & species
             "total_analyzed_captures": self.camera_data.get("total_analyzed_captures", 0),
             "buck_hits_count": self.camera_data.get("buck_hits_count", 0),
+            "doe_hits_count": self.camera_data.get("doe_hits_count", 0),
+            "person_hits_count": self.camera_data.get("person_hits_count", 0),
+            "human_activity_alert": self.camera_data.get("person_hits_count", 0) > 0,
             "morning_hits": self.camera_data.get("morning_hits", 0),
             "evening_hits": self.camera_data.get("evening_hits", 0),
             "night_hits": self.camera_data.get("night_hits", 0),
             "midday_hits": self.camera_data.get("midday_hits", 0),
             "peak_window": self.camera_data.get("peak_window", "Variable"),
-            # 24-hour movement
+            # 24-hour movement & species
             "captures_24h": self.camera_data.get("captures_24h_count", 0),
             "buck_hits_24h": self.camera_data.get("buck_hits_24h", 0),
+            "doe_hits_24h": self.camera_data.get("doe_hits_24h", 0),
+            "person_hits_24h": self.camera_data.get("person_hits_24h", 0),
             "morning_24h": self.camera_data.get("morning_24h", 0),
             "evening_24h": self.camera_data.get("evening_24h", 0),
             "night_24h": self.camera_data.get("night_24h", 0),
@@ -227,6 +234,36 @@ class StealthCamBuckHitsSensor(StealthCamBaseEntity, SensorEntity):
     @property
     def native_value(self) -> int:
         return self.camera_data.get("buck_hits_count", 0)
+
+
+class StealthCamDoeHitsSensor(StealthCamBaseEntity, SensorEntity):
+    """Verified doe detection hits sensor."""
+    _attr_icon = "mdi:deer"
+    _attr_native_unit_of_measurement = "does"
+
+    def __init__(self, coordinator, camera_name: str, pdi: str, slug: str) -> None:
+        super().__init__(coordinator, camera_name, pdi, slug)
+        self._attr_unique_id = f"{pdi}_doe_hits"
+        self._attr_name = f"{camera_name} Verified Doe Hits"
+
+    @property
+    def native_value(self) -> int:
+        return self.camera_data.get("doe_hits_count", 0)
+
+
+class StealthCamPersonHitsSensor(StealthCamBaseEntity, SensorEntity):
+    """Human activity detections sensor."""
+    _attr_icon = "mdi:account-alert"
+    _attr_native_unit_of_measurement = "people"
+
+    def __init__(self, coordinator, camera_name: str, pdi: str, slug: str) -> None:
+        super().__init__(coordinator, camera_name, pdi, slug)
+        self._attr_unique_id = f"{pdi}_person_hits"
+        self._attr_name = f"{camera_name} Human Activity Detections"
+
+    @property
+    def native_value(self) -> int:
+        return self.camera_data.get("person_hits_count", 0)
 
 
 class StealthCamPeakWindowSensor(StealthCamBaseEntity, SensorEntity):

@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """
-Clean, organized Lovelace view for Stealth Cam Trail Cameras.
-Features:
-1. Full-width top Hunting Intelligence Hub (3-column grid of Recommendation, Wind Matrix, and Movement Breakdown).
-2. Grouped 6-camera gallery grid (3 columns x 2 rows) with images and collapsible stand GPS details.
-3. Full-width Property Map at the bottom.
+Fully responsive Lovelace view for Stealth Cam Trail Cameras.
+Renders responsive columns on Desktop and 1 clean column on Mobile.
 """
 
 import asyncio
@@ -61,13 +58,13 @@ def make_cam_card(cam):
                     ],
                     "entity_picture": [
                         {"width": "100%"},
-                        {"height": "190px"},
+                        {"height": "200px"},
                         {"object-fit": "cover"},
                         {"border-radius": "12px 12px 0 0"},
                         {"background": "#111"}
                     ],
                     "name": [
-                        {"font-size": "15px"},
+                        {"font-size": "16px"},
                         {"font-weight": "700"},
                         {"letter-spacing": "0.5px"},
                         {"color": "#fff"},
@@ -134,93 +131,51 @@ def make_cam_card(cam):
     }
 
 def build_trail_cams_view():
-    # 1. Top Section: Hunting Intelligence Hub (Full-width spanning 3 cards)
-    top_intelligence_grid = {
-        "type": "grid",
-        "columns": 3,
-        "square": False,
-        "cards": [
-            {
-                "type": "markdown",
-                "title": "🎯 Stand Recommendation",
-                "content": (
-                    "**Top Pick Stand:** **HOMER / MAGGIE RUN**\n\n"
-                    "- 🦌 **Recent Buck Hits:** 2 Verified Hits at Homer\n"
-                    "- ⏰ **Peak Movement:** 04:45 AM - 07:15 AM (Dawn)\n"
-                    "- 🌔 **Moon Phase:** Waxing Crescent\n"
-                    "- 🌡️ **Field Temp:** ~58°F • Steady Barometer"
-                )
-            },
-            {
-                "type": "markdown",
-                "title": "🧭 Stand Scent & Wind Matrix",
-                "content": (
-                    "| Stand | Heading | Scent Status |\n"
-                    "| :--- | :--- | :--- |\n"
-                    "| **Homer** | 43° NE | 🟢 **Favorable (Headwind)** |\n"
-                    "| **Santa's Helper** | 356° N | 🟢 **Favorable (Headwind)** |\n"
-                    "| **Lisa** | 329° NNW | 🟢 **Favorable (Headwind)** |\n"
-                    "| **Maggie** | 297° WNW | 🟡 **Marginal (Crosswind)** |\n"
-                    "| **Marge** | 89° E | 🟡 **Marginal (Crosswind)** |\n"
-                    "| **Bart** | 177° S | 🔴 **Unfavorable (Downwind)** |\n"
-                )
-            },
-            {
-                "type": "markdown",
-                "title": "📊 Movement by Time of Day",
-                "content": (
-                    "- 🌅 **Dawn (5–9 AM):** `12%` (24 hits) • *Maggie & Homer*\n"
-                    "- ☀️ **Daylight (9 AM–4 PM):** `21%` (42 hits) • *Bart & Homer*\n"
-                    "- 🌇 **Evening (4–8 PM):** `14%` (28 hits) • *Homer & Bart*\n"
-                    "- 🌙 **Night (8 PM–5 AM):** `53%` (103 hits) • *Homer & Maggie*\n\n"
-                    "🦌 **Total Analyzed:** 200 captures • **2 Bucks**"
-                )
-            }
-        ]
-    }
+    cards = []
 
-    # 2. Middle Section: All 6 Cameras Grouped in a Clean 3x2 Grid
-    camera_gallery_grid = {
-        "type": "grid",
-        "columns": 3,
-        "square": False,
-        "cards": [
-            make_cam_card(CAMERAS[0]),  # Homer
-            make_cam_card(CAMERAS[1]),  # Maggie
-            make_cam_card(CAMERAS[2]),  # Santa's Helper
-            make_cam_card(CAMERAS[3]),  # Lisa
-            make_cam_card(CAMERAS[4]),  # Marge
-            make_cam_card(CAMERAS[5]),  # Bart
-        ]
-    }
+    # 1. Hunting Intelligence Summary Card (Responsive markdown)
+    cards.append({
+        "type": "markdown",
+        "title": "🎯 Stand Hunting Intelligence & Wind Matrix",
+        "content": (
+            "### 🏆 Recommended Stand: **HOMER / MAGGIE RUN**\n"
+            "- 🦌 **Recent Antlered Activity:** 2 Verified Buck Hits at Homer Stand\n"
+            "- ⏰ **Peak Movement:** Dawn Transitions (04:45 - 07:15 AM)\n"
+            "- 🌔 **Moon:** Waxing Crescent | 🌡️ **Field Temp:** ~58°F\n\n"
+            "---\n\n"
+            "### 🧭 Stand Scent & Wind Direction (Live: 5.0 mph SSW)\n"
+            "- 🟢 **Homer (43° NE):** **Favorable** (Headwind • Scent Clear)\n"
+            "- 🟢 **Santa's Helper (356° N):** **Favorable** (Headwind • Scent Clear)\n"
+            "- 🟢 **Lisa (329° NNW):** **Favorable** (Headwind • Scent Clear)\n"
+            "- 🟡 **Maggie (297° WNW):** **Marginal** (Crosswind Draft)\n"
+            "- 🟡 **Marge (89° E):** **Marginal** (Crosswind Draft)\n"
+            "- 🔴 **Bart (177° S):** **Unfavorable** (Tailwind • Downwind Risk)\n\n"
+            "---\n\n"
+            "### 📊 Property Movement Distribution (200 Captures)\n"
+            "🌅 **Dawn (5-9 AM):** `12%` | ☀️ **Day (9 AM-4 PM):** `21%` | 🌇 **Eve (4-8 PM):** `14%` | 🌙 **Night:** `53%`"
+        )
+    })
 
-    # 3. Bottom Section: Field Stand GPS Map
-    property_map = {
+    # 2. Camera Cards (One responsive card per camera)
+    for cam in CAMERAS:
+        cards.append(make_cam_card(cam))
+
+    # 3. Property Map Card
+    cards.append({
         "type": "map",
-        "title": "🗺️ Property Trail Camera Locations & Stand Positions",
+        "title": "🗺️ Property Camera Locations & Stand GPS",
         "default_zoom": 17,
         "hours_to_show": 1,
         "entities": [
             f"device_tracker.stealthcam_{cam['slug']}" for cam in CAMERAS
         ]
-    }
-
-    # Wrap in single vertical stack so top intelligence spans full width across all columns
-    main_stack = {
-        "type": "vertical-stack",
-        "cards": [
-            top_intelligence_grid,
-            camera_gallery_grid,
-            property_map
-        ]
-    }
+    })
 
     return {
         "title": "Trail Cams",
         "path": "trail-cams",
         "icon": "mdi:cctv",
-        "panel": True,
-        "cards": [main_stack]
+        "cards": cards
     }
 
 async def update_dashboard():
@@ -269,7 +224,7 @@ async def update_dashboard():
         }))
         save_res = json.loads(await ws.recv())
         if save_res.get("success"):
-            print("Successfully updated Trail Cams dashboard with grouped cameras and full-width top intelligence!")
+            print("Successfully updated Trail Cams dashboard with responsive desktop/mobile layout!")
         else:
             print("Failed to save lovelace config:", save_res)
 

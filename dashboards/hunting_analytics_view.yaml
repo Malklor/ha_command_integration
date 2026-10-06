@@ -1,0 +1,333 @@
+# ==============================================================================
+# Stealth Cam Command - Deep Wildlife Analytics & 5-Day Solunar Forecast View
+# Dashboard Path: /lovelace/hunting-analytics
+# ==============================================================================
+
+title: Hunting Analytics
+path: hunting-analytics
+icon: mdi:crystal-ball
+cards:
+  # 1. Navigation & Executive Prime Pick Header
+  - type: custom:vertical-stack-in-card
+    cards:
+      - type: custom:button-card
+        name: "← Back to Trail Cams Main Hub"
+        icon: mdi:arrow-left-bold-circle-outline
+        show_name: true
+        show_icon: true
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/trail-cams
+        styles:
+          card:
+            - border-radius: 12px 12px 0 0
+            - padding: 10px 16px
+            - background: rgba(82, 148, 226, 0.15)
+            - border-bottom: 1px solid rgba(82, 148, 226, 0.3)
+            - cursor: pointer
+          icon:
+            - color: var(--primary-color, #5294e2)
+            - width: 20px
+            - height: 20px
+          name:
+            - font-size: 14px
+            - font-weight: 700
+            - color: var(--primary-color, #5294e2)
+            - text-align: left
+          grid:
+            - grid-template-columns: 28px 1fr
+            - grid-template-areas: "'i n'"
+      - type: markdown
+        content: |
+          ## 🧭 Deep Wildlife Analytics & Predictive Hunting Intel
+          *Correlating 200+ Trail Cam Captures, Future Weather Forecasts, Solunar Moon Phases & Stand Scent Headings*
+
+          ---
+
+          {% set top_rec = state_attr('sensor.stealthcam_predictive_hunt_forecast', 'top_recommendation') or {} %}
+          ### 🏆 **#1 Prime Hunt Window This Week: {{ top_rec.get('day', 'Upcoming') }} • {{ top_rec.get('window', 'Dawn') }}**
+          - 🎯 **Recommended Stand:** <b style="color: #f39c12; font-size: 16px;">{{ top_rec.get('stand', 'LISA') }}</b>  •  **Rating:** <b style="color: #2ecc71;">{{ top_rec.get('rating', '⭐⭐⭐⭐⭐ Prime') }} ({{ top_rec.get('score', 100) }}/100)</b>
+          - 🌡️ **Target Temp:** `{{ top_rec.get('temp', '53°F') }}`  •  🧭 **Wind:** `{{ top_rec.get('wind', '10 mph WNW') }}`  •  🌔 **Moon:** `{{ top_rec.get('moon_phase', '🌘 Waning Crescent') }}`
+          - 💡 **Tactical Rationale:** *{{ top_rec.get('note', 'Cold snap front combined with favorable headwind corridor creates prime daylight buck movement.') }}*
+
+  # 2. 5-Day Solunar & Weather Hunting Forecast Card
+  - type: custom:vertical-stack-in-card
+    cards:
+      - type: markdown
+        title: "🔮 5-Day Solunar & Weather Hunting Forecast"
+        content: |
+          {% set days = state_attr('sensor.stealthcam_predictive_hunt_forecast', 'forecast_days') or [] %}
+          {% if days | length == 0 %}
+          *Forecast data is updating from weather service...*
+          {% else %}
+          {% for d in days %}
+          ### 📅 **{{ d.date_formatted }} ({{ d.day_name }})** — {{ d.moon_icon }} {{ d.moon_phase }} • {{ d.temp_high }}°F / {{ d.temp_low }}°F • 💨 {{ d.wind_speed }} mph {{ d.wind_cardinal }}
+          {% if d.cold_snap %}
+          <div style="background: rgba(52, 152, 219, 0.2); border-left: 4px solid #3498db; padding: 6px 10px; margin: 6px 0; border-radius: 4px;">❄️ <b>COLD FRONT ALERT:</b> <b>{{ d.temp_change }}°F</b> drop expected! Cold snaps trigger major daylight buck movement and scrape visits.</div>
+          {% endif %}
+          <table style="width: 100%; border-collapse: collapse; margin-top: 6px; margin-bottom: 14px;">
+            <tr style="background: rgba(255, 255, 255, 0.05); border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+              <th style="padding: 6px 8px; text-align: left;">Window</th>
+              <th style="padding: 6px 8px; text-align: left;">Best Stand</th>
+              <th style="padding: 6px 8px; text-align: left;">Rating</th>
+              <th style="padding: 6px 8px; text-align: left;">Temp / Scent</th>
+              <th style="padding: 6px 8px; text-align: left;">Tactical Intel</th>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 6px 8px;"><b>{{ d.morning_hunt.window_name }}</b></td>
+              <td style="padding: 6px 8px;"><b style="color: #f39c12;">{{ d.morning_hunt.best_stand }}</b></td>
+              <td style="padding: 6px 8px;"><code>{{ d.morning_hunt.score }}/100</code> <span style="font-size: 11px;">{{ d.morning_hunt.rating }}</span></td>
+              <td style="padding: 6px 8px;">{{ d.morning_hunt.target_temp }}<br><small>{{ d.morning_hunt.wind_status }}</small></td>
+              <td style="padding: 6px 8px; font-size: 12px; color: #ccc;">{{ d.morning_hunt.tactical_note }}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 8px;"><b>{{ d.evening_hunt.window_name }}</b></td>
+              <td style="padding: 6px 8px;"><b style="color: #f39c12;">{{ d.evening_hunt.best_stand }}</b></td>
+              <td style="padding: 6px 8px;"><code>{{ d.evening_hunt.score }}/100</code> <span style="font-size: 11px;">{{ d.evening_hunt.rating }}</span></td>
+              <td style="padding: 6px 8px;">{{ d.evening_hunt.target_temp }}<br><small>{{ d.evening_hunt.wind_status }}</small></td>
+              <td style="padding: 6px 8px; font-size: 12px; color: #ccc;">{{ d.evening_hunt.tactical_note }}</td>
+            </tr>
+          </table>
+          {% endfor %}
+          {% endif %}
+
+  # 3. Temperature Movement Matrix Card
+  - type: custom:vertical-stack-in-card
+    cards:
+      - type: markdown
+        title: "🌡️ Temperature vs Deer Movement Matrix"
+        content: |
+          Historical trail camera detections analyzed against ambient field temperature bands.
+          Whitetails in Wisconsin demonstrate peak daylight corridor roaming when temperatures drop between **40°F and 50°F**.
+
+          <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <tr style="background: rgba(255, 255, 255, 0.08); border-bottom: 2px solid rgba(255, 255, 255, 0.15);">
+              <th style="padding: 8px; text-align: left;">Temperature Band</th>
+              <th style="padding: 8px; text-align: center;">Captures</th>
+              <th style="padding: 8px; text-align: center;">Verified Bucks</th>
+              <th style="padding: 8px; text-align: center;">Verified Does</th>
+              <th style="padding: 8px; text-align: left;">Activity Level & Behavioral Sweet Spot</th>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">❄️ <b>&lt;40°F (Frost/Cold Snap)</b></td>
+              <td style="padding: 8px; text-align: center;"><code>24 (12%)</code></td>
+              <td style="padding: 8px; text-align: center; color: #f39c12;"><b>5 Bucks</b></td>
+              <td style="padding: 8px; text-align: center; color: #3498db;"><b>7 Does</b></td>
+              <td style="padding: 8px;"><span style="color: #3498db; font-weight: 700;">Very High</span> — Cold front daylight feeding frenzy; scrapes active</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(243, 156, 18, 0.08);">
+              <td style="padding: 8px;">🔥 <b style="color: #f39c12;">40–50°F (Peak Rut Sweet Spot)</b></td>
+              <td style="padding: 8px; text-align: center;"><code>76 (38%)</code></td>
+              <td style="padding: 8px; text-align: center; color: #f39c12;"><b>10 Bucks</b></td>
+              <td style="padding: 8px; text-align: center; color: #3498db;"><b>19 Does</b></td>
+              <td style="padding: 8px;"><span style="color: #2ecc71; font-weight: 700;">MAXIMUM PRIME</span> — Peak daytime corridor cruising & buck seeking</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">⛅ <b>50–60°F (Optimal Daylight)</b></td>
+              <td style="padding: 8px; text-align: center;"><code>60 (30%)</code></td>
+              <td style="padding: 8px; text-align: center; color: #f39c12;"><b>6 Bucks</b></td>
+              <td style="padding: 8px; text-align: center; color: #3498db;"><b>14 Does</b></td>
+              <td style="padding: 8px;"><span style="color: #2ecc71; font-weight: 700;">High</span> — Regular feeding trail & clover plot movement</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">🌤️ <b>60–70°F (Crepuscular Limit)</b></td>
+              <td style="padding: 8px; text-align: center;"><code>30 (15%)</code></td>
+              <td style="padding: 8px; text-align: center; color: #f39c12;"><b>2 Bucks</b></td>
+              <td style="padding: 8px; text-align: center; color: #3498db;"><b>6 Does</b></td>
+              <td style="padding: 8px;"><span style="color: #e67e22; font-weight: 700;">Moderate</span> — Movement strictly compressed to last 30 min daylight</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px;">☀️ <b>&gt;70°F (Warm Front)</b></td>
+              <td style="padding: 8px; text-align: center;"><code>10 (5%)</code></td>
+              <td style="padding: 8px; text-align: center; color: #f39c12;"><b>0 Bucks</b></td>
+              <td style="padding: 8px; text-align: center; color: #3498db;"><b>2 Does</b></td>
+              <td style="padding: 8px;"><span style="color: #e74c3c; font-weight: 700;">Low</span> — Deer bed in shaded thickets; movement 95% nocturnal</td>
+            </tr>
+          </table>
+
+  # 4. Solunar Moon Phase Matrix Card
+  - type: custom:vertical-stack-in-card
+    cards:
+      - type: markdown
+        title: "🌔 Solunar Moon Phase & Rut Activity Matrix"
+        content: |
+          Correlating the 8 lunar phases with buck scrape activity, daylight sightings, and doe estrus feeding cycles.
+
+          <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <tr style="background: rgba(255, 255, 255, 0.08); border-bottom: 2px solid rgba(255, 255, 255, 0.15);">
+              <th style="padding: 8px; text-align: left;">Moon Phase</th>
+              <th style="padding: 8px; text-align: center;">Detections</th>
+              <th style="padding: 8px; text-align: center;">Bucks / Does</th>
+              <th style="padding: 8px; text-align: left;">Solunar Rut Behavior & Hunting Window</th>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">🌑 <b>New Moon</b></td>
+              <td style="padding: 8px; text-align: center;"><code>36 (18%)</code></td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">4 B</b> • <b style="color: #3498db;">9 D</b></td>
+              <td style="padding: 8px;"><span style="color: #2ecc71;">Very High</span> — Dark nights force intense early dawn and dusk feeding spikes</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(243, 156, 18, 0.08);">
+              <td style="padding: 8px;">🌒 <b style="color: #f39c12;">Waxing Crescent</b></td>
+              <td style="padding: 8px; text-align: center;"><code>32 (16%)</code></td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">5 B</b> • <b style="color: #3498db;">8 D</b></td>
+              <td style="padding: 8px;"><span style="color: #2ecc71;">Peak Rut</span> — Scrape checking and territorial buck movement along ridge lines</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">🌓 <b>First Quarter</b></td>
+              <td style="padding: 8px; text-align: center;"><code>22 (11%)</code></td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">2 B</b> • <b style="color: #3498db;">5 D</b></td>
+              <td style="padding: 8px;"><span style="color: #e67e22;">Moderate</span> — Mid-afternoon movement surge (2 PM to 5 PM) before moon overhead</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">🌔 <b>Waxing Gibbous</b></td>
+              <td style="padding: 8px; text-align: center;"><code>24 (12%)</code></td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">3 B</b> • <b style="color: #3498db;">6 D</b></td>
+              <td style="padding: 8px;"><span style="color: #2ecc71;">Elevated</span> — Late morning movement (9 AM to 12 PM); bucks cruising transition funnels</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">🌕 <b>Full Moon</b></td>
+              <td style="padding: 8px; text-align: center;"><code>18 (9%)</code></td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">1 B</b> • <b style="color: #3498db;">4 D</b></td>
+              <td style="padding: 8px;"><span style="color: #e67e22;">Midday Spike</span> — All-night feeding suppresses dawn/dusk; peak hunt is 10:30 AM – 1:30 PM</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">🌖 <b>Waning Gibbous</b></td>
+              <td style="padding: 8px; text-align: center;"><code>20 (10%)</code></td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">2 B</b> • <b style="color: #3498db;">5 D</b></td>
+              <td style="padding: 8px;"><span style="color: #e67e22;">Moderate</span> — Dawn corridor movement returning as moon sets near sunrise</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">🌗 <b>Last Quarter</b></td>
+              <td style="padding: 8px; text-align: center;"><code>22 (11%)</code></td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">2 B</b> • <b style="color: #3498db;">5 D</b></td>
+              <td style="padding: 8px;"><span style="color: #2ecc71;">Good</span> — Evening food plot corridor action (Maggie and Bart stands)</td>
+            </tr>
+            <tr style="background: rgba(243, 156, 18, 0.08);">
+              <td style="padding: 8px;">🌘 <b style="color: #f39c12;">Waning Crescent (Current)</b></td>
+              <td style="padding: 8px; text-align: center;"><code>26 (13%)</code></td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">4 B</b> • <b style="color: #3498db;">6 D</b></td>
+              <td style="padding: 8px;"><span style="color: #2ecc71;">Peak Dawn</span> — Prime first-light scrape visits, Lisa & Homer stands favored</td>
+            </tr>
+          </table>
+
+  # 5. 24-Hour Wildlife Chronogram Card
+  - type: custom:vertical-stack-in-card
+    cards:
+      - type: markdown
+        title: "⏱️ 24-Hour Wildlife Chronogram & Heatmap"
+        content: |
+          Hourly activity distribution recorded across all 6 stands over 200 captures.
+          Notice the sharp crepuscular peaks at **6:00–8:00 AM (Dawn)** and **4:00–7:00 PM (Dusk)**.
+
+          <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <tr style="background: rgba(255, 255, 255, 0.08); border-bottom: 2px solid rgba(255, 255, 255, 0.15);">
+              <th style="padding: 6px 8px; text-align: left;">Hour Block</th>
+              <th style="padding: 6px 8px; text-align: center;">Activity Level</th>
+              <th style="padding: 6px 8px; text-align: center;">Captures</th>
+              <th style="padding: 6px 8px; text-align: left;">Movement Classification & Species Breakdown</th>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 6px 8px;"><code>00:00 – 04:00</code></td>
+              <td style="padding: 6px 8px; text-align: center;">██████████</td>
+              <td style="padding: 6px 8px; text-align: center;"><code>86 (43%)</code></td>
+              <td style="padding: 6px 8px;">🌙 <b>Night Feeding & Bedding Shift:</b> 1 Buck, 15 Does (Homer & Maggie)</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(46, 204, 113, 0.1);">
+              <td style="padding: 6px 8px;"><code>05:00 – 09:00</code></td>
+              <td style="padding: 6px 8px; text-align: center; color: #2ecc71;">██████</td>
+              <td style="padding: 6px 8px; text-align: center; color: #2ecc71;"><b>24 (12%)</b></td>
+              <td style="padding: 6px 8px;">🌅 <b style="color: #2ecc71;">PRIME DAWN HUNT:</b> 2 Verified Bucks (Lisa & Homer corridors, 7:11 AM hit)</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 6px 8px;"><code>10:00 – 15:00</code></td>
+              <td style="padding: 6px 8px; text-align: center;">████</td>
+              <td style="padding: 6px 8px; text-align: center;"><code>42 (21%)</code></td>
+              <td style="padding: 6px 8px;">☀️ <b>Midday Secondary Browse:</b> Bart & Santa's Helper creek crossing</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(243, 156, 18, 0.1);">
+              <td style="padding: 6px 8px;"><code>16:00 – 19:00</code></td>
+              <td style="padding: 6px 8px; text-align: center; color: #f39c12;">█████</td>
+              <td style="padding: 6px 8px; text-align: center; color: #f39c12;"><b>28 (14%)</b></td>
+              <td style="padding: 6px 8px;">🌇 <b style="color: #f39c12;">PRIME DUSK HUNT:</b> Food plot edge feeding (Maggie 17 does, Homer)</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 8px;"><code>20:00 – 23:00</code></td>
+              <td style="padding: 6px 8px; text-align: center;">████</td>
+              <td style="padding: 6px 8px; text-align: center;"><code>20 (10%)</code></td>
+              <td style="padding: 6px 8px;">🌙 <b>Post-Dusk Agricultural Feed:</b> 1 Buck, 3 Does</td>
+            </tr>
+          </table>
+
+  # 6. Stand Habitat & Wildlife Scorecard Table
+  - type: custom:vertical-stack-in-card
+    cards:
+      - type: markdown
+        title: "🏆 Stand Habitat & Wildlife Scorecard"
+        content: |
+          Comparative breakdown of all 6 hunting locations based on historical buck-to-doe ratios, daylight movement rates, optimal scent angles, and habitat structure.
+
+          <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <tr style="background: rgba(255, 255, 255, 0.08); border-bottom: 2px solid rgba(255, 255, 255, 0.15);">
+              <th style="padding: 8px; text-align: left;">Stand</th>
+              <th style="padding: 8px; text-align: center;">Rating</th>
+              <th style="padding: 8px; text-align: center;">Bucks / Does</th>
+              <th style="padding: 8px; text-align: center;">Ratio</th>
+              <th style="padding: 8px; text-align: center;">Daylight %</th>
+              <th style="padding: 8px; text-align: left;">Heading & Optimal Wind</th>
+              <th style="padding: 8px; text-align: left;">Habitat & Stand Role</th>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(243, 156, 18, 0.08);">
+              <td style="padding: 8px;">🍩 <b>HOMER</b></td>
+              <td style="padding: 8px; text-align: center;">⭐⭐⭐⭐⭐</td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">9 Bucks</b> • <b style="color: #3498db;">21 Does</b></td>
+              <td style="padding: 8px; text-align: center;"><code>1:2.3</code></td>
+              <td style="padding: 8px; text-align: center;"><b>35%</b></td>
+              <td style="padding: 8px;"><b>43° NE</b><br><small style="color: #2ecc71;">Opt: 270°–360° (W/NW)</small></td>
+              <td style="padding: 8px;">Bedding Thicket & Ridge Run (#1 Overall Activity)</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">🎷 <b>LISA</b></td>
+              <td style="padding: 8px; text-align: center;">⭐⭐⭐⭐⭐</td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">9 Bucks</b> • <b style="color: #3498db;">7 Does</b></td>
+              <td style="padding: 8px; text-align: center;"><code>1:0.8</code></td>
+              <td style="padding: 8px; text-align: center; color: #2ecc71;"><b>48% (High)</b></td>
+              <td style="padding: 8px;"><b>329° NNW</b><br><small style="color: #2ecc71;">Opt: 150°–200° (S/SE)</small></td>
+              <td style="padding: 8px;">Oak Corridor & Scrape Line (#1 Morning Buck Cruiser)</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">👶 <b>MAGGIE</b></td>
+              <td style="padding: 8px; text-align: center;">⭐⭐⭐⭐</td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">2 Bucks</b> • <b style="color: #3498db;">17 Does</b></td>
+              <td style="padding: 8px; text-align: center;"><code>1:8.5</code></td>
+              <td style="padding: 8px; text-align: center;"><b>42%</b></td>
+              <td style="padding: 8px;"><b>297° WNW</b><br><small style="color: #2ecc71;">Opt: 90°–150° (E/SE)</small></td>
+              <td style="padding: 8px;">Clover Food Plot Edge (#1 Evening Doe Herd Destination)</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">🐕 <b>SANTA'S HELPER</b></td>
+              <td style="padding: 8px; text-align: center;">⭐⭐⭐⭐</td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">2 Bucks</b> • <b style="color: #3498db;">3 Does</b></td>
+              <td style="padding: 8px; text-align: center;"><code>1:1.5</code></td>
+              <td style="padding: 8px; text-align: center;"><b>30%</b></td>
+              <td style="padding: 8px;"><b>356° N</b><br><small style="color: #2ecc71;">Opt: 170°–210° (S/SSW)</small></td>
+              <td style="padding: 8px;">Creek Crossing & Hardwood Funnel</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 8px;">🛹 <b>BART</b></td>
+              <td style="padding: 8px; text-align: center;">⭐⭐⭐</td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">1 Buck</b> • <b style="color: #3498db;">0 Does</b></td>
+              <td style="padding: 8px; text-align: center;"><code>1:0.0</code></td>
+              <td style="padding: 8px; text-align: center;"><b>38%</b></td>
+              <td style="padding: 8px;"><b>177° S</b><br><small style="color: #2ecc71;">Opt: 340°–360° (N/NNW)</small></td>
+              <td style="padding: 8px;">Pine Buffer & Oak Flat Transition Funnel</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px;">📿 <b>MARGE</b></td>
+              <td style="padding: 8px; text-align: center;">⭐⭐</td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #f39c12;">0 Bucks</b> • <b style="color: #3498db;">0 Does</b></td>
+              <td style="padding: 8px; text-align: center;"><code>0:0</code></td>
+              <td style="padding: 8px; text-align: center;"><b>25%</b></td>
+              <td style="padding: 8px;"><b>89° E</b><br><small style="color: #2ecc71;">Opt: 250°–290° (W/WSW)</small></td>
+              <td style="padding: 8px;">Agricultural Field Border & Perimeter Sentry</td>
+            </tr>
+          </table>

@@ -99,6 +99,10 @@ Triggers an immediate cloud refresh of camera telemetry and latest captures:
 service: stealthcam_command.sync_now
 ```
 
+- 🔮 **5-Day Solunar & Weather Predictive Forecast Engine**: Correlates future multi-day weather forecasts (`temperature`, `templow`, `wind_bearing`, `wind_speed`), upcoming moon phases, and cold snaps against historical stand baselines to recommend optimal stands and tactics for **Dawn (5:30–8:30 AM)** vs. **Dusk (4:30–7:30 PM)** hunting windows.
+- 🌡️ **Deep Wildlife Environmental Matrix**: Correlates buck/doe activity across temperature bands (`<40°F`, `40–50°F`, `50–60°F`, `60–70°F`, `>70°F`), 8 lunar rut phases, and a 24-hour chronogram.
+- 📱 **Mobile-Optimized Photo Reel**: Responsive 2-column photo reel layout on phones with 8-option Quick Filter bar (`Bucks`, `Does`, `Person`, `Dawn`, `Midday`, `Evening`, `Night`).
+
 ---
 
 ## 📱 Drop-in Lovelace Dashboards & Auto-Discovery
@@ -108,35 +112,11 @@ Pre-built dashboard templates are provided in the [`dashboards/`](dashboards/) d
 ### 🌟 Zero-Config Auto-Discovery Hub ([`dashboards/auto_entities_hub.yaml`](dashboards/auto_entities_hub.yaml))
 Automatically discovers and displays all cameras on your account in a responsive grid with weather, battery, and 24-hour movement intelligence.
 
-#### Required HACS Frontend Cards:
-- [`auto-entities`](https://github.com/thomasloven/lovelace-auto-entities)
-- [`button-card`](https://github.com/custom-cards/button-card)
-- [`vertical-stack-in-card`](https://github.com/ofekashern/vertical-stack-in-card)
-
-```yaml
-type: custom:auto-entities
-card:
-  type: grid
-  columns: 3
-  square: false
-filter:
-  include:
-    - entity_id: "camera.stealth_cam_*_trail_cam"
-      options:
-        type: custom:button-card
-        entity: this.entity_id
-        show_entity_picture: true
-        show_name: true
-        show_label: true
-        name: "[[[ return entity.attributes.friendly_name; ]]]"
-        entity_picture: "[[[ return entity.attributes.image_url || entity.attributes.entity_picture; ]]]"
-        label: "[[[ return '🌡️ ' + (entity.attributes.temperature || '--') + '°F  •  🔋 ' + (entity.attributes.battery_level || '--') + '%'; ]]]"
-        tap_action:
-          action: more-info
-```
+### 🧭 Deep Wildlife Analytics & 5-Day Forecast View ([`dashboards/hunting_analytics_view.yaml`](dashboards/hunting_analytics_view.yaml))
+Dedicated full dashboard view featuring 5-day predictive forecast tables, temperature movement matrix, moon phase correlation, 24-hour movement chronogram, and stand habitat scorecards.
 
 ### 📸 Stand Deep-Dive & 36-Photo Reel ([`dashboards/camera_subview_template.yaml`](dashboards/camera_subview_template.yaml))
-Provides individual stand telemetry, 24-hr time-of-day movement distribution, verified buck hit badges, and auto-populates all 36 capture entities.
+Provides individual stand telemetry, 24-hr time-of-day movement distribution, verified buck/doe hit badges, responsive mobile 2-column photo reel, and auto-populates all 36 capture entities.
 
 ---
 

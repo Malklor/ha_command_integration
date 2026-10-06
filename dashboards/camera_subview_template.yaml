@@ -80,9 +80,16 @@ cards:
           *Captures are sorted chronologically with newest first.*
       - type: custom:auto-entities
         card:
-          type: grid
-          columns: 3
-          square: false
+          type: custom:layout-card
+          layout_type: custom:grid-layout
+          layout:
+            grid-template-columns: repeat(3, 1fr)
+            grid-gap: 12px
+            margin: 0px
+            mediaquery:
+              "(max-width: 950px)":
+                grid-template-columns: repeat(2, 1fr)
+                grid-gap: 8px
         filter:
           include:
             - entity_id: "camera.stealth_cam_<camera_slug>_<camera_slug>_photo_*"

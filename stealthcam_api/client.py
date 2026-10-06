@@ -1,5 +1,6 @@
 """Stealth Cam Command API Client."""
 
+import datetime
 import logging
 import time
 from typing import Any, Dict, List, Optional
@@ -118,7 +119,7 @@ class StealthCamClient:
             raise StealthCamAPIError(f"Network error fetching statuses: {ex}") from ex
 
     def get_latest_images(self) -> List[Dict[str, Any]]:
-        """Retrieve latest captured photos for all cameras."""
+        """Retrieve latest captured photos with environmental data for all cameras."""
         self.ensure_auth()
         url = f"{self.base_url}/api/v3/file-manager/images/latest"
         try:
@@ -132,39 +133,87 @@ class StealthCamClient:
         except requests.RequestException as ex:
             raise StealthCamAPIError(f"Network error fetching latest images: {ex}") from ex
 
-    def download_image(self, image_url: str, target_path: str) -> bool:
-        """Download high-res photo from S3 and save locally."""
+    def get_recent_captures(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Fetch recent batch of photo captures across all cameras."""
+        self.ensure_auth()
+        url = f"{self.base_url}/api/v6/file-manager/images"
+        payload = {"takeCount": limit, "skipCount": 0}
         try:
-            res = requests.get(image_url, timeout=self.timeout)
+            res = self.session.post(url, json=payload, timeout=self.timeout)
             if res.status_code == 200:
-                with open(target_path, "wb") as f:
-                    f.write(res.content)
-                return True
-            _LOGGER.warning("Failed to download image (HTTP %s)", res.status_code)
-            return False
+                data = res.json()
+                return data.get("images", [])
+            return []
         except Exception as ex:
-            _LOGGER.error("Error saving image to %s: %s", target_path, ex)
-            return False
+            _LOGGER.warning("Failed fetching recent captures: %s", ex)
+            return []
 
     def get_full_camera_data(self) -> Dict[str, Dict[str, Any]]:
-        """Fetch unified dictionary of all cameras with status and latest photo."""
+        """Fetch unified dictionary of all cameras with status, latest photo, weather, and hit times."""
         devices = self.get_devices()
         pdis = [d["physicalDeviceIdentifier"] for d in devices if "physicalDeviceIdentifier" in d]
         statuses = self.get_device_statuses(pdis)
         latest_images = self.get_latest_images()
+        recent_captures = self.get_recent_captures(limit=100)
 
         status_map = {s["physicalDeviceIdentifier"]: s for s in statuses}
         image_map = {img["deviceName"]: img for img in latest_images if "deviceName" in img}
+
+        # Index captures by deviceId
+        captures_by_dev: Dict[int, List[Dict[str, Any]]] = {}
+        for cap in recent_captures:
+            dev_id = cap.get("deviceId")
+            if dev_id:
+                captures_by_dev.setdefault(dev_id, []).append(cap)
 
         result = {}
         for dev in devices:
             pdi = dev.get("physicalDeviceIdentifier")
             name = dev.get("name", "Unknown")
+            dev_id = dev.get("deviceId")
             status = status_map.get(pdi, {})
             latest_img = image_map.get(name, {})
+            dev_captures = captures_by_dev.get(dev_id, [])
+
+            # Determine last positive hit / detection timestamp
+            last_hit_dt = None
+            if dev_captures:
+                last_hit_dt = dev_captures[0].get("createdDateTime") or dev_captures[0].get("uploadedTime")
+
+            # Calculate movement patterns (morning vs evening distribution)
+            morning_hits = 0
+            evening_hits = 0
+            midday_hits = 0
+            night_hits = 0
+
+            for c in dev_captures:
+                cdt = c.get("createdDateTime")
+                if cdt:
+                    try:
+                        # Extract hour from ISO string
+                        hour = int(cdt.split("T")[1].split(":")[0])
+                        if 5 <= hour <= 8:
+                            morning_hits += 1
+                        elif 9 <= hour <= 16:
+                            midday_hits += 1
+                        elif 17 <= hour <= 20:
+                            evening_hits += 1
+                        else:
+                            night_hits += 1
+                    except Exception:
+                        pass
+
+            peak_window = "Variable"
+            if dev_captures:
+                max_window = max(
+                    [("Morning (5-8 AM)", morning_hits), ("Evening (5-8 PM)", evening_hits), ("Night", night_hits), ("Midday", midday_hits)],
+                    key=lambda x: x[1]
+                )
+                if max_window[1] > 0:
+                    peak_window = max_window[0]
 
             result[name] = {
-                "id": dev.get("deviceId"),
+                "id": dev_id,
                 "name": name,
                 "pdi": pdi,
                 "model": dev.get("deviceType", {}).get("deviceTypeName", dev.get("deviceModel")),
@@ -180,11 +229,21 @@ class StealthCamClient:
                 "sd_card_free_space": status.get("sdCardFreeSpace", 0),
                 "last_sync_unix": status.get("lastSyncDateUnixTime"),
                 "firmware_version": status.get("firmwareVersion", "Unknown"),
+                # Photo & Environmental Telemetry
                 "latest_image_url": latest_img.get("imageUrl"),
                 "latest_thumb_url": latest_img.get("thumbnailUrl"),
                 "latest_image_guid": latest_img.get("imageGuid"),
-                "latest_image_temperature": latest_img.get("temperature"),
-                "latest_image_pressure": latest_img.get("pressure"),
-                "latest_image_wind": latest_img.get("wind"),
+                "temperature": latest_img.get("temperature"),
+                "pressure": latest_img.get("pressure"),
+                "pressure_tendency": latest_img.get("pressureTendency", "Steady"),
+                "wind_speed": latest_img.get("wind"),
+                "wind_direction": latest_img.get("windDirection"),
+                "moon_phase": latest_img.get("moonPhase"),
+                "last_positive_hit": last_hit_dt,
+                "recent_hits_count": len(dev_captures),
+                "morning_hits": morning_hits,
+                "evening_hits": evening_hits,
+                "night_hits": night_hits,
+                "peak_window": peak_window,
             }
         return result

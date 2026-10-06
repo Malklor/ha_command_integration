@@ -337,12 +337,13 @@ def build_stand_subview(cam):
                 "cards": [
                     {
                         "type": "custom:button-card",
+                        "entity": f"camera.stealthcam_{slug}",
                         "show_entity_picture": True,
                         "show_name": True,
                         "show_label": True,
                         "entity_picture": p.get("thumb_url") or p.get("image_url"),
                         "name": p.get("time_str", "Recent"),
-                        "label": "✨ 🦌 VERIFIED BUCK HIT" if is_buck else "📷 Animal Capture",
+                        "label": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '✨ 🦌 VERIFIED BUCK HIT' : '📷 Animal Capture'; ]]]",
                         "tap_action": {
                             "action": "call-service",
                             "service": "input_text.set_value",
@@ -356,10 +357,10 @@ def build_stand_subview(cam):
                                 {"border-radius": "10px 10px 0 0"},
                                 {"overflow": "hidden"},
                                 {"padding": "0"},
-                                {"border": "2.5px solid #f39c12" if is_buck else "1.5px solid rgba(82, 148, 226, 0.35)"},
+                                {"border": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '2.5px solid #f39c12' : '1.5px solid rgba(82, 148, 226, 0.35)'; ]]]"},
                                 {"border-bottom": "none"},
                                 {"background": "var(--card-background-color, #1c1c1e)"},
-                                {"box-shadow": "0 0 12px rgba(243, 156, 18, 0.4)" if is_buck else "none"},
+                                {"box-shadow": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '0 0 12px rgba(243, 156, 18, 0.4)' : 'none'; ]]]"},
                                 {"cursor": "pointer"}
                             ],
                             "entity_picture": [
@@ -378,7 +379,7 @@ def build_stand_subview(cam):
                             "label": [
                                 {"font-size": "11px"},
                                 {"font-weight": "700"},
-                                {"color": "#f39c12" if is_buck else "#70a5eb"},
+                                {"color": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '#f39c12' : '#70a5eb'; ]]]"},
                                 {"padding": "2px 8px 6px 8px"},
                                 {"text-align": "left"}
                             ]
@@ -386,7 +387,8 @@ def build_stand_subview(cam):
                     },
                     {
                         "type": "custom:button-card",
-                        "name": "🦌 Verified Buck (Tap to Untag)" if is_buck else "🦌 Mark as Buck",
+                        "entity": f"camera.stealthcam_{slug}",
+                        "name": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '🦌 Verified Buck (Tap to Untag)' : '🦌 Mark as Buck'; ]]]",
                         "show_name": True,
                         "show_icon": False,
                         "tap_action": {
@@ -401,15 +403,15 @@ def build_stand_subview(cam):
                             "card": [
                                 {"border-radius": "0 0 10px 10px"},
                                 {"padding": "6px 8px"},
-                                {"background": "rgba(243, 156, 18, 0.2)" if is_buck else "rgba(82, 148, 226, 0.1)"},
-                                {"border": "2.5px solid #f39c12" if is_buck else "1.5px solid rgba(82, 148, 226, 0.35)"},
+                                {"background": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? 'rgba(243, 156, 18, 0.25)' : 'rgba(82, 148, 226, 0.1)'; ]]]"},
+                                {"border": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '2.5px solid #f39c12' : '1.5px solid rgba(82, 148, 226, 0.35)'; ]]]"},
                                 {"border-top": "none"},
                                 {"cursor": "pointer"}
                             ],
                             "name": [
                                 {"font-size": "11px"},
                                 {"font-weight": "700"},
-                                {"color": "#f39c12" if is_buck else "#6ba4f8"},
+                                {"color": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '#f39c12' : '#6ba4f8'; ]]]"},
                                 {"text-align": "center"}
                             ]
                         }

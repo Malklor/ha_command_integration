@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import slugify
 
 from .const import DOMAIN
 from .coordinator import StealthCamDataUpdateCoordinator
@@ -64,8 +65,13 @@ class StealthCamLatestPhotoCamera(CoordinatorEntity, Camera):
     @property
     def icon(self) -> str:
         """Return custom character icon for the camera."""
-        slug = slugify(self.camera_name)
+        slug = slugify(self.camera_name).replace("-", "_")
         return SIMPSON_ICONS.get(slug, "mdi:cctv")
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if camera has images."""
+        return bool(self.camera_data.get("latest_image_url") or self.camera_data.get("latest_thumb_url"))
 
     @property
     def camera_data(self) -> Dict[str, Any]:
@@ -153,6 +159,11 @@ class StealthCamCapturePhotoCamera(CoordinatorEntity, Camera):
         self.index = index
         self._attr_unique_id = f"{pdi}_photo_{index + 1}"
         self._attr_name = f"{camera_name} Photo {index + 1}"
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if photo capture exists."""
+        return bool(self.photo_data.get("image_url") or self.photo_data.get("thumb_url"))
 
     @property
     def photo_data(self) -> Dict[str, Any]:

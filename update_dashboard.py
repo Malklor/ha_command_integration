@@ -219,6 +219,7 @@ def build_trail_cams_view():
         "title": "Trail Cams",
         "path": "trail-cams",
         "icon": "mdi:cctv",
+        "panel": True,
         "cards": [main_stack]
     }
 

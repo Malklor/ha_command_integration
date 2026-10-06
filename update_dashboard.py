@@ -154,8 +154,11 @@ def build_trail_cams_view():
             "- {{ d.get('BART', {}).get('status', '🔴 Unfavorable') }} **Bart ({{ d.get('BART', {}).get('heading', '177°') }})**\n"
             "{% endif %}\n\n"
             "---\n\n"
-            "### 📊 Property Movement Distribution ({{ state_attr('sensor.stealthcam_property_movement', 'total_captures') | default(200) }} Captures)\n"
-            "🌅 **Dawn (5-9 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'morning_pct') | default(12) }}%` | ☀️ **Day (9 AM-4 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'midday_pct') | default(21) }}%` | 🌇 **Eve (4-8 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'evening_pct') | default(14) }}%` | 🌙 **Night:** `{{ state_attr('sensor.stealthcam_property_movement', 'night_pct') | default(53) }}%`"
+            "### 📊 Property Movement Distribution ({{ state_attr('sensor.stealthcam_property_movement', 'total_captures') | default(200) }} Analyzed Captures)\n"
+            "- 🌅 **Dawn Transitions (5:00 AM – 8:59 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'morning_pct') | default(12) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'morning_hits') | default(24) }} hits) • *Top: Maggie & Homer*\n"
+            "- ☀️ **Daylight Movement (9:00 AM – 3:59 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'midday_pct') | default(21) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'midday_hits') | default(42) }} hits) • *Top: Bart & Homer*\n"
+            "- 🌇 **Evening Feeding (4:00 PM – 7:59 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'evening_pct') | default(14) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'evening_hits') | default(28) }} hits) • *Top: Homer & Bart*\n"
+            "- 🌙 **Night Roaming (8:00 PM – 4:59 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'night_pct') | default(53) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'night_hits') | default(103) }} hits) • *Top: Homer & Maggie*"
         )
     })
 

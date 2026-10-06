@@ -1,136 +1,110 @@
-# Stealth Cam Command Integration for Home Assistant
+# 🦌 Stealth Cam Command Integration for Home Assistant
 
-A Home Assistant integration and sync service for **Stealth Cam / GSM Outdoors Command** cellular trail cameras.
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
+[![GitHub Release](https://img.shields.io/github/v/release/Malklor/ha_command_integration?style=for-the-badge&color=blue)](https://github.com/Malklor/ha_command_integration/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
----
+A native, feature-rich Home Assistant custom integration for **Stealth Cam / GSM Outdoors Command** cellular trail cameras.
 
-## 🌟 Features
-
-- 🔋 **Battery Monitoring**: Real-time battery percentage (`sensor.stealthcam_<name>_battery`) and voltage.
-- 📶 **Cellular Signal Strength**: Signal strength rating and RSSI level (`sensor.stealthcam_<name>_signal`).
-- 💾 **SD Card Health**: Free space percentage (`sensor.stealthcam_<name>_sd_free`).
-- 🕒 **Last Check-in**: Exact timestamp of last cellular sync (`sensor.stealthcam_<name>_last_checkin`).
-- 📸 **Latest Photo Feeds**: Full high-resolution captured photos & thumbnails with environmental sensor data (temperature, barometric pressure, wind speed, GPS coordinates).
-- 🗺️ **GPS Mapping**: Automatically tracks camera field locations with built-in latitude and longitude coordinates.
+Provides real-time hardware telemetry, cellular connectivity monitoring, field weather analytics, GPS tracking, high-resolution photo reels, live wind matrix calculations, and 1-tap verified buck tagging.
 
 ---
 
-## 📁 Repository Structure
+## 🌟 Key Features
 
-```
-ha_command_integration/
-├── stealthcam_api/                # Python client library for Command Cloud API
-│   ├── __init__.py
-│   └── client.py
-├── custom_components/             # HACS-compatible Home Assistant Integration
-│   └── stealthcam_command/
-│       ├── __init__.py
-│       ├── camera.py
-│       ├── config_flow.py
-│       ├── const.py
-│       ├── coordinator.py
-│       ├── manifest.json
-│       └── sensor.py
-├── sync_to_ha.py                  # Standalone sync daemon & script
-├── .gitignore
-└── README.md
-```
+- 🔋 **Hardware & Battery Telemetry**: Real-time battery percentage (`%`), voltage (`V`), SD card health & free space (`%`), and cellular sync timestamps.
+- 📶 **Cellular Connectivity**: Signal strength ratings, RSSI dBm values, and carrier network status.
+- 📸 **High-Resolution Photo Feeds**: Native camera entities with high-resolution image proxies, thumbnail galleries, and full-screen inspection.
+- 🌤️ **Field Environmental Sensors**: Ambient field temperature (`°F`), barometric pressure (`inHg`), pressure trend, wind speed & compass direction, and moon phase.
+- 🧭 **Stand Scent & Wind Direction Matrix**: Evaluates current field wind against each camera stand's physical heading to compute favorable, marginal, or unfavorable hunting conditions.
+- 🦌 **1-Tap Buck Tagging & Score Tracking**: Tag captures as verified antlered bucks with real-time gold badge highlights and stand analytics.
+- 📊 **24-Hour Time-of-Day Movement Distribution**: Classifies property-wide and stand-specific deer movement into Dawn Transitions (5-8 AM), Daylight Movement (9 AM-4 PM), Evening Feeding (4-8 PM), and Night Roaming (8 PM-5 AM).
+- 🗺️ **GPS Mapping & Stand Tracking**: Tracks camera positions on Home Assistant maps with custom stand character pins and compass headings.
 
 ---
 
-## 🚀 Quick Start & Usage
+## 📦 Installation via HACS (Recommended)
 
-### Method A: Automated Sync Daemon (Ready Immediately)
-
-1. Create or verify your `.env` file:
-   ```yaml
-   username: your_email@domain.com
-   password: your_command_password
+1. Ensure [HACS (Home Assistant Community Store)](https://hacs.xyz/) is installed.
+2. Open Home Assistant and navigate to **HACS ➔ Integrations**.
+3. Click the **3 dots** in the top right corner and select **Custom repositories**.
+4. Enter the Repository URL:
    ```
-
-2. Run a one-time sync:
-   ```bash
-   ./sync_to_ha.py
+   https://github.com/Malklor/ha_command_integration
    ```
-
-3. Run continuously as a background daemon:
-   ```bash
-   ./sync_to_ha.py --daemon --interval 300
-   ```
-
-4. Or set up as a standard cron job (every 15 minutes):
-   ```crontab
-   */15 * * * * /home/tgoetz/Projects/ha_command_integration/sync_to_ha.py > /tmp/stealthcam_sync.log 2>&1
-   ```
+5. Select **Integration** as the Category and click **Add**.
+6. Find **Stealth Cam Command** in the integration list and click **Download**.
+7. Restart Home Assistant.
 
 ---
 
-### Method B: Native Home Assistant Custom Integration (HACS)
+## ⚙️ Configuration
 
-1. Copy the `custom_components/stealthcam_command` directory into your Home Assistant `/config/custom_components/` directory:
-   ```bash
-   cp -r /home/tgoetz/Projects/ha_command_integration/custom_components/stealthcam_command /config/custom_components/
-   ```
-2. Restart Home Assistant.
-3. Go to **Settings ➔ Devices & Services ➔ Add Integration**.
-4. Search for **Stealth Cam Command** and enter your Command app email and password.
+1. In Home Assistant, go to **Settings ➔ Devices & Services ➔ Add Integration**.
+2. Search for **Stealth Cam Command**.
+3. Enter your **Stealth Cam Command account email and password**.
+4. Click **Submit**. Home Assistant will automatically discover all registered cellular trail cameras and generate camera, sensor, and tracker entities.
 
 ---
 
-## 📊 Lovelace Dashboard Examples
+## 📊 Entities Created Per Camera
 
-### 1. Trail Cam Photo Gallery Card
+| Entity Type | Entity ID Example | Description |
+| :--- | :--- | :--- |
+| **Camera** | `camera.stealthcam_homer` | Latest high-res photo capture with full image proxy |
+| **Battery Sensor** | `sensor.stealthcam_homer_battery` | Battery percentage (`%`) and voltage |
+| **Signal Sensor** | `sensor.stealthcam_homer_signal` | Cellular signal strength and carrier |
+| **SD Card Sensor** | `sensor.stealthcam_homer_sd_free` | SD card free storage percentage (`%`) |
+| **Check-in Sensor** | `sensor.stealthcam_homer_last_checkin` | Timestamp of last cellular check-in |
+| **Last Hit Sensor** | `sensor.stealthcam_homer_last_hit` | Timestamp of most recent animal detection |
+| **Buck Hits Sensor** | `sensor.stealthcam_homer_buck_hits` | Verified buck hit count |
+| **Peak Window Sensor** | `sensor.stealthcam_homer_peak_window` | Stand's peak movement window |
+| **Device Tracker** | `device_tracker.stealthcam_homer` | GPS coordinates and stand compass bearing |
+
+---
+
+## 🛠️ Services
+
+The integration registers native services for dashboard interactions and automations:
+
+### `stealthcam_command.toggle_buck`
+Toggles or sets the verified antlered buck state for a capture GUID:
 ```yaml
-type: grid
-columns: 3
-square: false
+service: stealthcam_command.toggle_buck
+data:
+  guid: "01a1109a-f850-73a7-9fb2-8b1be1024262"
+```
+
+### `stealthcam_command.sync_now`
+Triggers an immediate cloud refresh of camera telemetry and latest captures:
+```yaml
+service: stealthcam_command.sync_now
+```
+
+---
+
+## 📱 Lovelace Dashboard Example
+
+```yaml
+type: custom:vertical-stack-in-card
 cards:
-  - type: picture-entity
+  - type: custom:button-card
     entity: camera.stealthcam_homer
-    name: Homer
-    show_state: false
-  - type: picture-entity
-    entity: camera.stealthcam_lisa
-    name: Lisa
-    show_state: false
-  - type: picture-entity
-    entity: camera.stealthcam_maggie
-    name: Maggie
-    show_state: false
-  - type: picture-entity
-    entity: camera.stealthcam_santas_helper
-    name: Santa's Helper
-    show_state: false
-  - type: picture-entity
-    entity: camera.stealthcam_bart
-    name: Bart
-    show_state: false
-  - type: picture-entity
-    entity: camera.stealthcam_marge
-    name: Marge
-    show_state: false
-```
-
-### 2. Trail Cam Status & Battery Glance Card
-```yaml
-type: glance
-title: 🦌 Trail Cameras Status
-entities:
-  - entity: sensor.stealthcam_homer_battery
-    name: Homer
-  - entity: sensor.stealthcam_lisa_battery
-    name: Lisa
-  - entity: sensor.stealthcam_maggie_battery
-    name: Maggie
-  - entity: sensor.stealthcam_santas_helper_battery
-    name: Santa's Helper
-  - entity: sensor.stealthcam_bart_battery
-    name: Bart
-  - entity: sensor.stealthcam_marge_battery
-    name: Marge
+    show_entity_picture: true
+    show_name: true
+    show_label: true
+    name: HOMER STAND
+    tap_action:
+      action: more-info
+    styles:
+      entity_picture:
+        - width: 100%
+        - height: 220px
+        - object-fit: cover
 ```
 
 ---
 
-## 🔒 Security
-- All sensitive credentials, tokens, and `.env` files are strictly excluded via `.gitignore`.
+## 📄 License
+
+Distributed under the [MIT License](LICENSE).

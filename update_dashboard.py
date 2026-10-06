@@ -25,23 +25,29 @@ if not HA_TOKEN and os.path.exists(".env"):
                 HA_TOKEN = line.split("=", 1)[1].strip()
 
 CAMERAS = [
-    {"slug": "homer", "name": "HOMER", "id": "3000211", "icon": "mdi:donut", "heading": "43° NE"},
-    {"slug": "maggie", "name": "MAGGIE", "id": "3000779", "icon": "mdi:pacifier", "heading": "297° WNW"},
-    {"slug": "santas_helper", "name": "SANTA'S HELPER", "id": "3001315", "icon": "mdi:dog-side", "heading": "356° N"},
-    {"slug": "lisa", "name": "LISA", "id": "3000767", "icon": "mdi:saxophone", "heading": "329° NNW"},
-    {"slug": "marge", "name": "MARGE", "id": "3000223", "icon": "mdi:necklace", "heading": "89° E"},
-    {"slug": "bart", "name": "BART", "id": "3000762", "icon": "mdi:skateboard", "heading": "177° S"},
+    {"slug": "homer", "native_entity": "camera.stealth_cam_homer_homer_trail_cam", "battery_entity": "sensor.stealth_cam_homer_homer_battery", "signal_entity": "sensor.stealth_cam_homer_homer_cellular_signal", "sd_entity": "sensor.stealth_cam_homer_homer_sd_free_space", "checkin_entity": "sensor.stealth_cam_homer_homer_last_check_in", "name": "HOMER", "id": "3000211", "icon": "mdi:donut", "heading": "43° NE"},
+    {"slug": "maggie", "native_entity": "camera.stealth_cam_maggie_maggie_trail_cam", "battery_entity": "sensor.stealth_cam_maggie_maggie_battery", "signal_entity": "sensor.stealth_cam_maggie_maggie_cellular_signal", "sd_entity": "sensor.stealth_cam_maggie_maggie_sd_free_space", "checkin_entity": "sensor.stealth_cam_maggie_maggie_last_check_in", "name": "MAGGIE", "id": "3000779", "icon": "mdi:pacifier", "heading": "297° WNW"},
+    {"slug": "santas_helper", "native_entity": "camera.stealth_cam_santas_helper_santas_helper_trail_cam", "battery_entity": "sensor.stealth_cam_santas_helper_santas_helper_battery", "signal_entity": "sensor.stealth_cam_santas_helper_santas_helper_cellular_signal", "sd_entity": "sensor.stealth_cam_santas_helper_santas_helper_sd_free_space", "checkin_entity": "sensor.stealth_cam_santas_helper_santas_helper_last_check_in", "name": "SANTA'S HELPER", "id": "3001315", "icon": "mdi:dog-side", "heading": "356° N"},
+    {"slug": "lisa", "native_entity": "camera.stealth_cam_lisa_lisa_trail_cam", "battery_entity": "sensor.stealth_cam_lisa_lisa_battery", "signal_entity": "sensor.stealth_cam_lisa_lisa_cellular_signal", "sd_entity": "sensor.stealth_cam_lisa_lisa_sd_free_space", "checkin_entity": "sensor.stealth_cam_lisa_lisa_last_check_in", "name": "LISA", "id": "3000767", "icon": "mdi:saxophone", "heading": "329° NNW"},
+    {"slug": "marge", "native_entity": "camera.stealth_cam_marge_marge_trail_cam", "battery_entity": "sensor.stealth_cam_marge_marge_battery", "signal_entity": "sensor.stealth_cam_marge_marge_cellular_signal", "sd_entity": "sensor.stealth_cam_marge_marge_sd_free_space", "checkin_entity": "sensor.stealth_cam_marge_marge_last_check_in", "name": "MARGE", "id": "3000223", "icon": "mdi:necklace", "heading": "89° E"},
+    {"slug": "bart", "native_entity": "camera.stealth_cam_bart_bart_trail_cam", "battery_entity": "sensor.stealth_cam_bart_bart_battery", "signal_entity": "sensor.stealth_cam_bart_bart_cellular_signal", "sd_entity": "sensor.stealth_cam_bart_bart_sd_free_space", "checkin_entity": "sensor.stealth_cam_bart_bart_last_check_in", "name": "BART", "id": "3000762", "icon": "mdi:skateboard", "heading": "177° S"},
 ]
 
 def make_cam_card(cam):
     slug = cam["slug"]
     name = cam["name"]
+    cam_entity = cam.get("native_entity", f"camera.stealthcam_{slug}")
+    battery_entity = cam.get("battery_entity", f"sensor.stealthcam_{slug}_battery")
+    signal_entity = cam.get("signal_entity", f"sensor.stealthcam_{slug}_signal")
+    sd_entity = cam.get("sd_entity", f"sensor.stealthcam_{slug}_sd_free")
+    checkin_entity = cam.get("checkin_entity", f"sensor.stealthcam_{slug}_last_checkin")
+
     return {
         "type": "custom:vertical-stack-in-card",
         "cards": [
             {
                 "type": "custom:button-card",
-                "entity": f"camera.stealthcam_{slug}",
+                "entity": cam_entity,
                 "show_entity_picture": True,
                 "show_name": True,
                 "show_label": True,
@@ -51,7 +57,7 @@ def make_cam_card(cam):
                     f"[[[ "
                     f"var h = states['sensor.stealthcam_{slug}_last_hit'] ? states['sensor.stealthcam_{slug}_last_hit'].state : 'None'; "
                     f"var t = entity.attributes.temperature ? ('🌡️ ' + entity.attributes.temperature + '°F  •  ') : ''; "
-                    f"var b = entity.attributes.battery_level !== undefined ? ('🔋 ' + entity.attributes.battery_level + '%') : ''; "
+                    f"var b = (states['{battery_entity}'] && states['{battery_entity}'].state !== 'unavailable') ? ('🔋 ' + states['{battery_entity}'].state + '%') : (entity.attributes.battery_level !== undefined ? ('🔋 ' + entity.attributes.battery_level + '%') : ''); "
                     f"var bucks = states['sensor.stealthcam_{slug}_buck_hits'] ? states['sensor.stealthcam_{slug}_buck_hits'].state : '0'; "
                     f"var buckStr = (bucks && bucks !== '0' && bucks !== 'unknown') ? ('  •  🦌 ' + bucks + ' Buck' + (bucks > 1 ? 's' : '')) : ''; "
                     f"return '🎯 ' + h + buckStr + '<br>' + t + b; "
@@ -122,17 +128,17 @@ def make_cam_card(cam):
                                 "icon": "mdi:crosshairs-gps"
                             },
                             {
-                                "entity": f"sensor.stealthcam_{slug}_signal",
+                                "entity": signal_entity,
                                 "name": "Cellular Signal Strength",
                                 "icon": "mdi:signal-cellular-2"
                             },
                             {
-                                "entity": f"sensor.stealthcam_{slug}_sd_free",
+                                "entity": sd_entity,
                                 "name": "SD Card Free",
                                 "icon": "mdi:sd"
                             },
                             {
-                                "entity": f"sensor.stealthcam_{slug}_last_checkin",
+                                "entity": checkin_entity,
                                 "name": "Cellular Sync Time",
                                 "icon": "mdi:sync"
                             }

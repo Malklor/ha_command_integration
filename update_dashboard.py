@@ -139,7 +139,7 @@ def build_trail_cams_view():
         "cards": [
             {
                 "type": "markdown",
-                "title": "🎯 Stand Hunting Intelligence & Wind Matrix",
+                "title": "🎯 Hunting Intelligence",
                 "content": (
                     "### 🏆 Recommended Stand: **{{ states('sensor.stealthcam_hunt_recommendation') }}**\n"
                     "- 🦌 **Recent Antlered Activity:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'buck_hits') | default(0) }} Verified Buck Hits\n"

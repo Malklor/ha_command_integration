@@ -40,6 +40,10 @@ cards:
       - 🔋 **Battery:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_battery') }}%`  •  **Signal:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_cellular_signal') }}`
 
   # 3. Dynamic Auto-Entities Photo Gallery (Discovers all 36 capture camera entities)
+  - type: markdown
+    content: |
+      ### 📸 Photo Reel (Latest 36 Captures)
+      *Captures are sorted chronologically with newest first.*
   - type: custom:auto-entities
     card:
       type: grid

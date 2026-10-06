@@ -4,13 +4,15 @@ Comprehensive Trail Cams Dashboard & Stand Deep-Dive Subviews.
 Features:
 1. Main Hub: Responsive Hunting Intelligence card with toggleable Camera Location Map, and 6 camera cards.
 2. Each Camera Card: In-card recent photo reel thumbnails, buck hit counters, and detailed movement stats.
-3. Dedicated Subviews (/lovelace-basement/stand-<slug>): Full historical photo gallery, animal scoring, and deep stand telemetry.
+3. Dedicated Subviews (/lovelace-basement/stand-<slug>): Full visual thumbnail photo gallery with gold buck highlights, 24h movement trends, and animal tag analysis.
 """
 
 import asyncio
 import json
+import requests
 import websockets
 
+HA_URL = "http://192.168.131.17:8123"
 HA_WS = "ws://192.168.131.17:8123/api/websocket"
 HA_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMWUzMzA5ODZkYzQ0YWJiYWM4NmU5OGIxMTJiZDNiNSIsImlhdCI6MTc5MDk3MTMwMiwiZXhwIjoyMTA2MzMxMzAyfQ.wkyHRjBsBKiaEMbXmz_nyGreKnLtwiTTCGuxADaVeqs"
 
@@ -269,60 +271,128 @@ def build_trail_cams_view():
         "cards": cards
     }
 
+def fetch_camera_photos(slug: str) -> list:
+    try:
+        headers = {"Authorization": f"Bearer {HA_TOKEN}"}
+        r = requests.get(f"{HA_URL}/api/states/camera.stealthcam_{slug}", headers=headers, timeout=5)
+        if r.status_code == 200:
+            return r.json().get("attributes", {}).get("recent_photos", [])
+    except Exception:
+        pass
+    return []
+
 def build_stand_subview(cam):
     slug = cam["slug"]
     name = cam["name"]
     heading = cam["heading"]
+    photos = fetch_camera_photos(slug)
 
-    # 1. Stand Navigation Header
+    # 1. Navigation Header
     header_card = {
         "type": "markdown",
         "content": (
-            f"## 🦌 {name} Stand Intelligence & Photo Gallery\n"
-            f"**Field Position:** {{{{ states('sensor.stealthcam_{slug}_location') }}}}  •  **Heading:** {heading}\n"
-            f"[⬅️ Return to Trail Cams Hub](/lovelace-basement/trail-cams)"
+            f"## 🦌 {name} Stand Intelligence & Photo Reel\n"
+            f"**Field Position:** {{{{ states('sensor.stealthcam_{slug}_location') }}}}  •  **Heading:** {heading}\n\n"
+            f"[⬅️ **Return to Trail Cams Hub**](/lovelace-basement/trail-cams)"
         )
     }
 
-    # 2. Stand Analytics & Hunting Telemetry
+    # 2. Granular Stand Movement Trends & Animal Tag Analysis
     analytics_card = {
         "type": "markdown",
-        "title": "📊 Stand Movement & Scent Analysis",
+        "title": "📊 Stand Movement & Animal Tag Analysis",
         "content": (
-            f"### 🎯 Recent Detections\n"
-            f"- 🦌 **Verified Antlered Hits:** `{{{{ states('sensor.stealthcam_{slug}_buck_hits') }}}} Bucks`\n"
-            f"- ⏰ **Peak Movement Time:** `{{{{ states('sensor.stealthcam_{slug}_peak_window') }}}}`\n"
-            f"- 🎯 **Last Verified Hit:** `{{{{ states('sensor.stealthcam_{slug}_last_hit') }}}}`\n\n"
+            f"### 🦌 Animal Classification & Buck Activity\n"
+            f"- 🦌 **Verified Antlered Hits:** `{{{{ states('sensor.stealthcam_{slug}_buck_hits') }}}} Buck Captures` *(Highlighted in Gold below)*\n"
+            f"- 🎯 **Last Verified Animal Hit:** `{{{{ states('sensor.stealthcam_{slug}_last_hit') }}}}`\n"
+            f"- ⏰ **Primary Movement Window:** `{{{{ states('sensor.stealthcam_{slug}_peak_window') }}}}`\n\n"
+            f"---\n\n"
+            f"### ⏰ 24-Hour Time-of-Day Movement Distribution ({{{{ state_attr('sensor.stealthcam_{slug}_last_hit', 'total_analyzed_captures') | default(0) }}}} Total Captures)\n"
+            f"- 🌅 **Dawn Transitions (5:00 AM – 8:59 AM):** `{{{{ state_attr('sensor.stealthcam_{slug}_last_hit', 'morning_hits') | default(0) }}}} hits`\n"
+            f"- ☀️ **Daylight Movement (9:00 AM – 3:59 PM):** `{{{{ state_attr('sensor.stealthcam_{slug}_last_hit', 'midday_hits') | default(0) }}}} hits`\n"
+            f"- 🌇 **Evening Feeding (4:00 PM – 7:59 PM):** `{{{{ state_attr('sensor.stealthcam_{slug}_last_hit', 'evening_hits') | default(0) }}}} hits`\n"
+            f"- 🌙 **Night Roaming (8:00 PM – 4:59 AM):** `{{{{ state_attr('sensor.stealthcam_{slug}_last_hit', 'night_hits') | default(0) }}}} hits`\n\n"
             f"---\n\n"
             f"### 🌤️ Stand Weather & Telemetry\n"
-            f"- 🌡️ **Field Temperature:** `{{{{ states('sensor.stealthcam_{slug}_temperature') }}}}°F`\n"
-            f"- 📈 **Barometric Pressure:** `{{{{ states('sensor.stealthcam_{slug}_pressure') }}}} inHg` ({{{{ state_attr('sensor.stealthcam_{slug}_pressure', 'pressure_tendency') | default('Steady') }}}})\n"
-            f"- 💨 **Live Field Wind:** `{{{{ states('sensor.stealthcam_{slug}_wind') }}}}`\n"
-            f"- 🌔 **Moon Phase:** `{{{{ states('sensor.stealthcam_{slug}_moon_phase') }}}}`\n"
-            f"- 🔋 **Battery Level:** `{{{{ states('sensor.stealthcam_{slug}_battery') }}}}%` ({{{{ state_attr('sensor.stealthcam_{slug}_battery', 'battery_volt') }}}}V)\n"
-            f"- 📶 **Cellular Signal:** `{{{{ states('sensor.stealthcam_{slug}_signal') }}}}`"
+            f"- 🌡️ **Field Temperature:** `{{{{ states('sensor.stealthcam_{slug}_temperature') }}}}°F`  •  **Pressure:** `{{{{ states('sensor.stealthcam_{slug}_pressure') }}}} inHg` ({{{{ state_attr('sensor.stealthcam_{slug}_pressure', 'pressure_tendency') | default('Steady') }}}})\n"
+            f"- 💨 **Live Field Wind:** `{{{{ states('sensor.stealthcam_{slug}_wind') }}}}`  •  **Moon:** `{{{{ states('sensor.stealthcam_{slug}_moon_phase') }}}}`\n"
+            f"- 🔋 **Battery Level:** `{{{{ states('sensor.stealthcam_{slug}_battery') }}}}%` ({{{{ state_attr('sensor.stealthcam_{slug}_battery', 'battery_volt') }}}}V)  •  **Signal:** `{{{{ states('sensor.stealthcam_{slug}_signal') }}}}`"
         )
     }
 
-    # 3. Dynamic Photo Gallery (All Recent Captures & Buck Hits)
-    gallery_card = {
-        "type": "markdown",
-        "title": "📸 Recent Captures & Animal Photo Reel",
-        "content": (
-            f"{{% set photos = state_attr('camera.stealthcam_{slug}', 'recent_photos') %}}\n"
-            f"{{% if photos and photos | length > 0 %}}\n"
-            f"| Capture Timestamp | Classification | Photo Link |\n"
-            f"| :--- | :--- | :--- |\n"
-            f"{{% for p in photos %}}\n"
-            f"| 🕒 **{{{{ p.time_str }}}}** | {{{{ '🦌 **VERIFIED BUCK HIT**' if p.is_buck else '📷 Animal Movement' }}}} | [🔍 View High-Res Image]({{{{ p.image_url }}}}) |\n"
-            f"{{% endfor %}}\n"
-            f"{{% else %}}\n"
-            f"*No recent captures recorded for this camera yet.*\n"
-            f"{{% endif %}}"
-        )
-    }
+    # 3. Visual Photo Thumbnail Gallery Grid
+    gallery_cards = []
+    if photos:
+        for idx, p in enumerate(photos[:12]):
+            is_buck = p.get("is_buck", False)
+            p_card = {
+                "type": "custom:button-card",
+                "show_entity_picture": True,
+                "show_name": True,
+                "show_label": True,
+                "entity_picture": p.get("thumb_url") or p.get("image_url"),
+                "name": p.get("time_str", "Recent"),
+                "label": "🦌 VERIFIED BUCK HIT" if is_buck else "📷 Animal Capture",
+                "tap_action": {
+                    "action": "url",
+                    "url_path": p.get("image_url") or p.get("thumb_url", "#")
+                },
+                "styles": {
+                    "card": [
+                        {"border-radius": "10px"},
+                        {"overflow": "hidden"},
+                        {"padding": "0"},
+                        {"border": "2.5px solid #f39c12" if is_buck else "1.5px solid rgba(82, 148, 226, 0.35)"},
+                        {"background": "var(--card-background-color, #1c1c1e)"},
+                        {"box-shadow": "0 0 12px rgba(243, 156, 18, 0.4)" if is_buck else "0 2px 8px rgba(0, 0, 0, 0.25)"}
+                    ],
+                    "entity_picture": [
+                        {"width": "100%"},
+                        {"height": "160px"},
+                        {"object-fit": "cover"},
+                        {"background": "#000"}
+                    ],
+                    "name": [
+                        {"font-size": "13px"},
+                        {"font-weight": "700"},
+                        {"color": "#fff"},
+                        {"padding": "6px 8px 0px 8px"},
+                        {"text-align": "left"}
+                    ],
+                    "label": [
+                        {"font-size": "11px"},
+                        {"font-weight": "700"},
+                        {"color": "#f39c12" if is_buck else "#70a5eb"},
+                        {"padding": "2px 8px 6px 8px"},
+                        {"text-align": "left"}
+                    ]
+                }
+            }
+            gallery_cards.append(p_card)
 
-    # 4. Stand Map Card
+    if gallery_cards:
+        photo_section = {
+            "type": "vertical-stack",
+            "cards": [
+                {
+                    "type": "markdown",
+                    "content": "### 📸 Recent Photo Reel & Animal Detections (Tap to Enlarge Full Photo)"
+                },
+                {
+                    "type": "grid",
+                    "columns": 3,
+                    "square": False,
+                    "cards": gallery_cards
+                }
+            ]
+        }
+    else:
+        photo_section = {
+            "type": "markdown",
+            "content": "### 📸 Recent Photo Reel\n*No recent captures recorded for this camera yet.*"
+        }
+
+    # 4. Zoomed Stand GPS Map
     stand_map = {
         "type": "map",
         "title": f"🗺️ {name} Stand Position",
@@ -335,7 +405,7 @@ def build_stand_subview(cam):
         "title": f"{name} Stand",
         "path": f"stand-{slug}",
         "subview": True,
-        "cards": [header_card, analytics_card, gallery_card, stand_map]
+        "cards": [header_card, analytics_card, photo_section, stand_map]
     }
 
 async def update_dashboard():
@@ -372,7 +442,7 @@ async def update_dashboard():
         if not found:
             views.append(trail_view)
 
-        # 2. Add/update dedicated stand subviews
+        # 2. Add/update dedicated stand subviews with visual thumbnail gallery
         for cam in CAMERAS:
             stand_view = build_stand_subview(cam)
             s_found = False
@@ -395,7 +465,7 @@ async def update_dashboard():
         }))
         save_res = json.loads(await ws.recv())
         if save_res.get("success"):
-            print("Successfully updated Trail Cams dashboard with Stand Deep-Dive subviews & photo galleries!")
+            print("Successfully updated Trail Cams dashboard with Visual Thumbnail Galleries & Movement Trends!")
         else:
             print("Failed to save lovelace config:", save_res)
 

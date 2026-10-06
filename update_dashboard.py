@@ -45,8 +45,7 @@ def make_cam_card(cam):
                     f"]]]"
                 ),
                 "tap_action": {
-                    "action": "url",
-                    "url_path": "[[[ return entity.attributes.image_url || '#'; ]]]"
+                    "action": "more-info"
                 },
                 "styles": {
                     "card": [

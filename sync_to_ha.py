@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sync Stealth Cam Command trail cameras and hunting telemetry to Home Assistant."""
+"""Sync Stealth Cam Command trail cameras, GPS, and hunting analytics to Home Assistant."""
 
 import argparse
 import datetime
@@ -11,7 +11,7 @@ import time
 from typing import Dict, Any, Optional
 import requests
 
-from stealthcam_api.client import StealthCamClient, StealthCamAuthError, StealthCamAPIError
+from stealthcam_api.client import StealthCamClient, StealthCamAuthError, StealthCamAPIError, degrees_to_cardinal
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,17 +48,8 @@ def slugify(name: str) -> str:
     return "".join(c if c.isalnum() else "_" for c in name.lower()).strip("_")
 
 
-def degrees_to_cardinal(deg: Optional[float]) -> str:
-    """Convert degree bearing to 16-point cardinal compass direction."""
-    if deg is None:
-        return "N/A"
-    val = int((deg / 22.5) + 0.5)
-    dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
-    return dirs[(val % 16)]
-
-
 class HAStealthCamSyncer:
-    """Orchestrates syncing Stealth Cam cloud data and hunting telemetry to Home Assistant."""
+    """Orchestrates syncing Stealth Cam cloud data, GPS, and hunting analytics to Home Assistant."""
 
     def __init__(
         self,
@@ -93,7 +84,7 @@ class HAStealthCamSyncer:
 
     def sync_once(self) -> int:
         """Fetch all cameras and update Home Assistant entities."""
-        _LOGGER.info("Fetching camera and hunting telemetry from Stealth Cam Command...")
+        _LOGGER.info("Fetching camera, GPS, and hunting analytics from Stealth Cam Command...")
         try:
             cameras = self.client.get_full_camera_data()
         except (StealthCamAuthError, StealthCamAPIError) as ex:
@@ -109,6 +100,7 @@ class HAStealthCamSyncer:
             model = cam.get("model", "Connect Max 2")
             lat = cam.get("latitude")
             lon = cam.get("longitude")
+            heading = cam.get("heading", "Unknown")
 
             common_attrs = {
                 "friendly_name": f"{name} Trail Camera",
@@ -119,10 +111,29 @@ class HAStealthCamSyncer:
                 "carrier": cam.get("carrier"),
                 "latitude": lat,
                 "longitude": lon,
+                "heading": heading,
                 "last_synced_to_ha": now_iso,
             }
 
-            # 1. Battery Sensor
+            # 1. Device Tracker (GPS Location Pin on Property Maps)
+            if lat is not None and lon is not None:
+                self.post_state(
+                    f"device_tracker.stealthcam_{slug}",
+                    "not_home",
+                    {
+                        **common_attrs,
+                        "friendly_name": f"Trail Cam {name}",
+                        "source_type": "gps",
+                        "latitude": lat,
+                        "longitude": lon,
+                        "gps_accuracy": 5,
+                        "battery_level": cam.get("battery_level"),
+                        "heading": heading,
+                        "icon": "mdi:map-marker-radius",
+                    }
+                )
+
+            # 2. Battery Sensor
             battery_attrs = {
                 **common_attrs,
                 "friendly_name": f"{name} Battery",
@@ -138,7 +149,7 @@ class HAStealthCamSyncer:
                 battery_attrs,
             )
 
-            # 2. Cellular Signal Sensor
+            # 3. Cellular Signal Sensor
             signal_attrs = {
                 **common_attrs,
                 "friendly_name": f"{name} Cellular Signal",
@@ -152,20 +163,19 @@ class HAStealthCamSyncer:
                 signal_attrs,
             )
 
-            # 3. SD Card Free Space
-            sd_attrs = {
-                **common_attrs,
-                "friendly_name": f"{name} SD Free Space",
-                "unit_of_measurement": "%",
-                "icon": "mdi:sd",
-            }
+            # 4. SD Card Free Space
             self.post_state(
                 f"sensor.stealthcam_{slug}_sd_free",
                 cam.get("sd_card_free_space", 0),
-                sd_attrs,
+                {
+                    **common_attrs,
+                    "friendly_name": f"{name} SD Free Space",
+                    "unit_of_measurement": "%",
+                    "icon": "mdi:sd",
+                }
             )
 
-            # 4. Last Cellular Check-in
+            # 5. Last Cellular Check-in
             last_sync_unix = cam.get("last_sync_unix")
             last_sync_str = "Unknown"
             if last_sync_unix:
@@ -173,59 +183,84 @@ class HAStealthCamSyncer:
                     last_sync_unix / 1000.0, tz=datetime.timezone.utc
                 ).strftime("%b %-d, %-I:%M %p")
 
-            sync_attrs = {
-                **common_attrs,
-                "friendly_name": f"{name} Last Check-In",
-                "icon": "mdi:cloud-check-outline",
-            }
             self.post_state(
                 f"sensor.stealthcam_{slug}_last_checkin",
                 last_sync_str,
-                sync_attrs,
+                {
+                    **common_attrs,
+                    "friendly_name": f"{name} Last Check-In",
+                    "icon": "mdi:cloud-check-outline",
+                }
             )
 
-            # 5. Last Positive Animal Hit / Capture Trigger
+            # 6. Last Positive Animal Hit / Capture Trigger
             last_hit_raw = cam.get("last_positive_hit")
             last_hit_str = "No recent hit"
             if last_hit_raw:
                 try:
-                    # Clean ISO format to readable string
                     dt_hit = datetime.datetime.fromisoformat(last_hit_raw)
                     last_hit_str = dt_hit.strftime("%b %-d, %-I:%M %p")
                 except Exception:
                     last_hit_str = str(last_hit_raw)[:16]
 
-            hit_attrs = {
-                **common_attrs,
-                "friendly_name": f"{name} Last Animal Hit",
-                "raw_timestamp": last_hit_raw,
-                "recent_captures_in_batch": cam.get("recent_hits_count", 0),
-                "morning_hits": cam.get("morning_hits", 0),
-                "evening_hits": cam.get("evening_hits", 0),
-                "night_hits": cam.get("night_hits", 0),
-                "peak_window": cam.get("peak_window", "Variable"),
-                "icon": "mdi:target-account",
-            }
             self.post_state(
                 f"sensor.stealthcam_{slug}_last_hit",
                 last_hit_str,
-                hit_attrs,
+                {
+                    **common_attrs,
+                    "friendly_name": f"{name} Last Animal Hit",
+                    "raw_timestamp": last_hit_raw,
+                    "total_analyzed_captures": cam.get("total_analyzed_captures", 0),
+                    "buck_hits_count": cam.get("buck_hits_count", 0),
+                    "morning_hits": cam.get("morning_hits", 0),
+                    "evening_hits": cam.get("evening_hits", 0),
+                    "night_hits": cam.get("night_hits", 0),
+                    "midday_hits": cam.get("midday_hits", 0),
+                    "peak_window": cam.get("peak_window", "Variable"),
+                    "icon": "mdi:target-account",
+                }
             )
 
-            # 6. Peak Movement Window
+            # 7. Positive Buck Hits Count
+            self.post_state(
+                f"sensor.stealthcam_{slug}_buck_hits",
+                cam.get("buck_hits_count", 0),
+                {
+                    **common_attrs,
+                    "friendly_name": f"{name} Positive Buck Hits",
+                    "unit_of_measurement": "bucks",
+                    "icon": "mdi:deer",
+                }
+            )
+
+            # 8. Activity Peak Window
             self.post_state(
                 f"sensor.stealthcam_{slug}_peak_window",
                 cam.get("peak_window", "Variable"),
                 {
                     **common_attrs,
-                    "friendly_name": f"{name} Peak Activity Window",
+                    "friendly_name": f"{name} Peak Movement Window",
                     "morning_count": cam.get("morning_hits", 0),
                     "evening_count": cam.get("evening_hits", 0),
+                    "night_count": cam.get("night_hits", 0),
+                    "midday_count": cam.get("midday_hits", 0),
                     "icon": "mdi:chart-bell-curve",
                 }
             )
 
-            # 7. Temperature Sensor
+            # 9. Camera Heading & Orientation
+            self.post_state(
+                f"sensor.stealthcam_{slug}_heading",
+                heading,
+                {
+                    **common_attrs,
+                    "friendly_name": f"{name} Camera Heading",
+                    "rotate_angle": cam.get("rotate_angle"),
+                    "icon": "mdi:compass",
+                }
+            )
+
+            # 10. Temperature Sensor
             temp_val = cam.get("temperature")
             if temp_val is not None:
                 self.post_state(
@@ -241,7 +276,7 @@ class HAStealthCamSyncer:
                     }
                 )
 
-            # 8. Barometric Pressure Sensor & Tendency
+            # 11. Barometric Pressure Sensor & Tendency
             press_val = cam.get("pressure")
             if press_val is not None:
                 self.post_state(
@@ -258,7 +293,7 @@ class HAStealthCamSyncer:
                     }
                 )
 
-            # 9. Wind Speed & Direction
+            # 12. Wind Speed & Direction
             wind_spd = cam.get("wind_speed")
             wind_dir = cam.get("wind_direction")
             if wind_spd is not None:
@@ -276,7 +311,7 @@ class HAStealthCamSyncer:
                     }
                 )
 
-            # 10. Moon Phase
+            # 13. Moon Phase
             moon_val = cam.get("moon_phase")
             if moon_val:
                 self.post_state(
@@ -289,7 +324,7 @@ class HAStealthCamSyncer:
                     }
                 )
 
-            # 11. Camera / Latest Photo Entity
+            # 14. Camera / Latest Photo Entity
             img_url = cam.get("latest_image_url")
             thumb_url = cam.get("latest_thumb_url")
             cam_attrs = {
@@ -306,9 +341,12 @@ class HAStealthCamSyncer:
                 "wind_direction": cam.get("wind_direction"),
                 "moon_phase": cam.get("moon_phase"),
                 "last_positive_hit": last_hit_str,
+                "total_analyzed_captures": cam.get("total_analyzed_captures", 0),
+                "buck_hits_count": cam.get("buck_hits_count", 0),
                 "peak_window": cam.get("peak_window"),
                 "battery_level": cam.get("battery_level"),
                 "signal": cam.get("signal_strength"),
+                "heading": heading,
             }
             self.post_state(
                 f"camera.stealthcam_{slug}",
@@ -318,7 +356,7 @@ class HAStealthCamSyncer:
 
             updated_count += 1
 
-        _LOGGER.info("Successfully synced %d trail cameras and hunting telemetry to Home Assistant.", updated_count)
+        _LOGGER.info("Successfully synced %d trail cameras, GPS, and hunting analytics to Home Assistant.", updated_count)
         return updated_count
 
 

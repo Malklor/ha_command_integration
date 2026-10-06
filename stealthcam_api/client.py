@@ -20,6 +20,15 @@ class StealthCamAPIError(Exception):
     """Exception raised when an API call fails."""
 
 
+def degrees_to_cardinal(deg: Optional[float]) -> str:
+    """Convert degree bearing to 16-point cardinal compass direction."""
+    if deg is None:
+        return "N/A"
+    val = int((deg / 22.5) + 0.5)
+    dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+    return dirs[(val % 16)]
+
+
 class StealthCamClient:
     """Client for interacting with the Stealth Cam Command Cloud REST API."""
 
@@ -133,8 +142,8 @@ class StealthCamClient:
         except requests.RequestException as ex:
             raise StealthCamAPIError(f"Network error fetching latest images: {ex}") from ex
 
-    def get_recent_captures(self, limit: int = 100) -> List[Dict[str, Any]]:
-        """Fetch recent batch of photo captures across all cameras."""
+    def get_recent_captures(self, limit: int = 200) -> List[Dict[str, Any]]:
+        """Fetch historical batch of photo captures across all cameras for statistical modeling."""
         self.ensure_auth()
         url = f"{self.base_url}/api/v6/file-manager/images"
         payload = {"takeCount": limit, "skipCount": 0}
@@ -149,12 +158,12 @@ class StealthCamClient:
             return []
 
     def get_full_camera_data(self) -> Dict[str, Dict[str, Any]]:
-        """Fetch unified dictionary of all cameras with status, latest photo, weather, and hit times."""
+        """Fetch unified dictionary of all cameras with status, latest photo, weather, GPS, and stats."""
         devices = self.get_devices()
         pdis = [d["physicalDeviceIdentifier"] for d in devices if "physicalDeviceIdentifier" in d]
         statuses = self.get_device_statuses(pdis)
         latest_images = self.get_latest_images()
-        recent_captures = self.get_recent_captures(limit=100)
+        recent_captures = self.get_recent_captures(limit=200)
 
         status_map = {s["physicalDeviceIdentifier"]: s for s in statuses}
         image_map = {img["deviceName"]: img for img in latest_images if "deviceName" in img}
@@ -177,20 +186,21 @@ class StealthCamClient:
 
             # Determine last positive hit / detection timestamp
             last_hit_dt = None
-            if dev_captures:
-                last_hit_dt = dev_captures[0].get("createdDateTime") or dev_captures[0].get("uploadedTime")
-
-            # Calculate movement patterns (morning vs evening distribution)
+            buck_hits_count = 0
             morning_hits = 0
             evening_hits = 0
             midday_hits = 0
             night_hits = 0
 
+            if dev_captures:
+                last_hit_dt = dev_captures[0].get("createdDateTime") or dev_captures[0].get("uploadedTime")
+
             for c in dev_captures:
+                if c.get("isBuckScored"):
+                    buck_hits_count += 1
                 cdt = c.get("createdDateTime")
                 if cdt:
                     try:
-                        # Extract hour from ISO string
                         hour = int(cdt.split("T")[1].split(":")[0])
                         if 5 <= hour <= 8:
                             morning_hits += 1
@@ -203,14 +213,21 @@ class StealthCamClient:
                     except Exception:
                         pass
 
+            total_hits = len(dev_captures)
             peak_window = "Variable"
-            if dev_captures:
-                max_window = max(
-                    [("Morning (5-8 AM)", morning_hits), ("Evening (5-8 PM)", evening_hits), ("Night", night_hits), ("Midday", midday_hits)],
-                    key=lambda x: x[1]
-                )
-                if max_window[1] > 0:
-                    peak_window = max_window[0]
+            if total_hits > 0:
+                windows = [
+                    ("Morning (5-8 AM)", morning_hits),
+                    ("Evening (5-8 PM)", evening_hits),
+                    ("Night (9 PM-4 AM)", night_hits),
+                    ("Midday (9 AM-4 PM)", midday_hits),
+                ]
+                max_w = max(windows, key=lambda x: x[1])
+                if max_w[1] > 0:
+                    peak_window = f"{max_w[0]} ({round((max_w[1] / total_hits) * 100)}%)"
+
+            rotate_angle = dev.get("rotateAngle")
+            heading_cardinal = degrees_to_cardinal(rotate_angle) if rotate_angle is not None else "N/A"
 
             result[name] = {
                 "id": dev_id,
@@ -219,9 +236,13 @@ class StealthCamClient:
                 "model": dev.get("deviceType", {}).get("deviceTypeName", dev.get("deviceModel")),
                 "manufacturer": dev.get("manufacturer"),
                 "carrier": dev.get("carrier"),
+                # GPS & Position Intelligence
                 "latitude": dev.get("latitude"),
                 "longitude": dev.get("longitude"),
+                "rotate_angle": rotate_angle,
+                "heading": f"{heading_cardinal} ({rotate_angle}°)" if rotate_angle is not None else "Unknown",
                 "is_active": dev.get("isActive", True),
+                # Hardware Telemetry
                 "battery_level": status.get("batteryLevel", 0),
                 "battery_volt": status.get("batteryVolt", 0.0),
                 "signal_strength": status.get("signalStrength", "Unknown"),
@@ -239,11 +260,14 @@ class StealthCamClient:
                 "wind_speed": latest_img.get("wind"),
                 "wind_direction": latest_img.get("windDirection"),
                 "moon_phase": latest_img.get("moonPhase"),
+                # Hunting Statistical Breakdown
                 "last_positive_hit": last_hit_dt,
-                "recent_hits_count": len(dev_captures),
+                "total_analyzed_captures": total_hits,
+                "buck_hits_count": buck_hits_count,
                 "morning_hits": morning_hits,
                 "evening_hits": evening_hits,
                 "night_hits": night_hits,
+                "midday_hits": midday_hits,
                 "peak_window": peak_window,
             }
         return result

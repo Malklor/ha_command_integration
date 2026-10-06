@@ -410,7 +410,10 @@ class StealthCamHuntRecommendationSensor(CoordinatorEntity, SensorEntity):
         cams = self.coordinator.data or {}
         best = max(cams.values(), key=lambda x: (x.get("buck_hits_count", 0), x.get("total_analyzed_captures", 0)), default={}) if cams else {}
         return {
+            "stand": best.get("name", "Unknown"),
             "buck_hits": best.get("buck_hits_count", 0),
+            "doe_hits": best.get("doe_hits_count", 0),
+            "person_hits": best.get("person_hits_count", 0),
             "peak_window": best.get("peak_window", "Variable"),
             "moon_phase": best.get("moon_phase", "Unknown"),
             "current_temp": best.get("temperature", 60),
@@ -462,6 +465,9 @@ class StealthCamPropertyMovementSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         cams = self.coordinator.data or {}
+        tot_bucks = sum(c.get("buck_hits_count", 0) for c in cams.values())
+        tot_does = sum(c.get("doe_hits_count", 0) for c in cams.values())
+        tot_people = sum(c.get("person_hits_count", 0) for c in cams.values())
         tot_m = sum(c.get("morning_hits", 0) for c in cams.values())
         tot_mid = sum(c.get("midday_hits", 0) for c in cams.values())
         tot_e = sum(c.get("evening_hits", 0) for c in cams.values())
@@ -471,6 +477,8 @@ class StealthCamPropertyMovementSensor(CoordinatorEntity, SensorEntity):
         # 24-Hour metrics
         caps_24h = sum(c.get("captures_24h_count", 0) for c in cams.values())
         bucks_24h = sum(c.get("buck_hits_24h", 0) for c in cams.values())
+        does_24h = sum(c.get("doe_hits_24h", 0) for c in cams.values())
+        people_24h = sum(c.get("person_hits_24h", 0) for c in cams.values())
         m_24 = sum(c.get("morning_24h", 0) for c in cams.values())
         mid_24 = sum(c.get("midday_24h", 0) for c in cams.values())
         eve_24 = sum(c.get("evening_24h", 0) for c in cams.values())
@@ -479,6 +487,9 @@ class StealthCamPropertyMovementSensor(CoordinatorEntity, SensorEntity):
         return {
             # All-time
             "total_captures": tot,
+            "buck_hits": tot_bucks,
+            "doe_hits": tot_does,
+            "person_hits": tot_people,
             "morning_hits": tot_m,
             "midday_hits": tot_mid,
             "evening_hits": tot_e,
@@ -490,6 +501,8 @@ class StealthCamPropertyMovementSensor(CoordinatorEntity, SensorEntity):
             # 24-hour
             "captures_24h": caps_24h,
             "buck_hits_24h": bucks_24h,
+            "doe_hits_24h": does_24h,
+            "person_hits_24h": people_24h,
             "morning_hits_24h": m_24,
             "morning_pct_24h": round((m_24 / max(1, caps_24h)) * 100) if caps_24h else 0,
             "midday_hits_24h": mid_24,

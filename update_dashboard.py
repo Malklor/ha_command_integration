@@ -133,49 +133,69 @@ def make_cam_card(cam):
 def build_trail_cams_view():
     cards = []
 
-    # 1. Hunting Intelligence Summary Card (Dynamic live Jinja2 template)
-    cards.append({
-        "type": "markdown",
-        "title": "🎯 Stand Hunting Intelligence & Wind Matrix",
-        "content": (
-            "### 🏆 Recommended Stand: **{{ states('sensor.stealthcam_hunt_recommendation') }}**\n"
-            "- 🦌 **Recent Antlered Activity:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'buck_hits') | default(0) }} Verified Buck Hits\n"
-            "- ⏰ **Peak Movement Window:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'peak_window') | default('Dawn') }}\n"
-            "- 🌔 **Moon Phase:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'moon_phase') | default('Waxing Crescent') }} | 🌡️ **Field Temp:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'current_temp') | default(58) }}°F\n\n"
-            "---\n\n"
-            "### 🧭 Stand Scent & Wind Direction (Live: {{ state_attr('sensor.stealthcam_stand_wind_matrix', 'wind_speed_mph') }} mph {{ state_attr('sensor.stealthcam_stand_wind_matrix', 'wind_cardinal') }})\n"
-            "{% set d = state_attr('sensor.stealthcam_stand_wind_matrix', 'stand_details') %}\n"
-            "{% if d %}\n"
-            "- {{ d.get('HOMER', {}).get('status', '🟢 Favorable') }} **Homer ({{ d.get('HOMER', {}).get('heading', '43°') }})**\n"
-            "- {{ d.get(\"SANTA'S HELPER\", {}).get('status', '🟢 Favorable') }} **Santa's Helper ({{ d.get(\"SANTA'S HELPER\", {}).get('heading', '356°') }})**\n"
-            "- {{ d.get('LISA', {}).get('status', '🟢 Favorable') }} **Lisa ({{ d.get('LISA', {}).get('heading', '329°') }})**\n"
-            "- {{ d.get('MAGGIE', {}).get('status', '🟡 Marginal') }} **Maggie ({{ d.get('MAGGIE', {}).get('heading', '297°') }})**\n"
-            "- {{ d.get('MARGE', {}).get('status', '🟡 Marginal') }} **Marge ({{ d.get('MARGE', {}).get('heading', '89°') }})**\n"
-            "- {{ d.get('BART', {}).get('status', '🔴 Unfavorable') }} **Bart ({{ d.get('BART', {}).get('heading', '177°') }})**\n"
-            "{% endif %}\n\n"
-            "---\n\n"
-            "### 📊 Property Movement Distribution ({{ state_attr('sensor.stealthcam_property_movement', 'total_captures') | default(200) }} Analyzed Captures)\n"
-            "- 🌅 **Dawn Transitions (5:00 AM – 8:59 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'morning_pct') | default(12) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'morning_hits') | default(24) }} hits) • *Top: Maggie & Homer*\n"
-            "- ☀️ **Daylight Movement (9:00 AM – 3:59 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'midday_pct') | default(21) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'midday_hits') | default(42) }} hits) • *Top: Bart & Homer*\n"
-            "- 🌇 **Evening Feeding (4:00 PM – 7:59 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'evening_pct') | default(14) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'evening_hits') | default(28) }} hits) • *Top: Homer & Bart*\n"
-            "- 🌙 **Night Roaming (8:00 PM – 4:59 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'night_pct') | default(53) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'night_hits') | default(103) }} hits) • *Top: Homer & Maggie*"
-        )
-    })
+    # 1. Hunting Intelligence Summary Card with Collapsible Camera Location Map
+    intelligence_card = {
+        "type": "custom:vertical-stack-in-card",
+        "cards": [
+            {
+                "type": "markdown",
+                "title": "🎯 Stand Hunting Intelligence & Wind Matrix",
+                "content": (
+                    "### 🏆 Recommended Stand: **{{ states('sensor.stealthcam_hunt_recommendation') }}**\n"
+                    "- 🦌 **Recent Antlered Activity:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'buck_hits') | default(0) }} Verified Buck Hits\n"
+                    "- ⏰ **Peak Movement Window:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'peak_window') | default('Dawn') }}\n"
+                    "- 🌔 **Moon Phase:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'moon_phase') | default('Waxing Crescent') }} | 🌡️ **Field Temp:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'current_temp') | default(58) }}°F\n\n"
+                    "---\n\n"
+                    "### 🧭 Stand Scent & Wind Direction (Live: {{ state_attr('sensor.stealthcam_stand_wind_matrix', 'wind_speed_mph') }} mph {{ state_attr('sensor.stealthcam_stand_wind_matrix', 'wind_cardinal') }})\n"
+                    "{% set d = state_attr('sensor.stealthcam_stand_wind_matrix', 'stand_details') %}\n"
+                    "{% if d %}\n"
+                    "- {{ d.get('HOMER', {}).get('status', '🟢 Favorable') }} **Homer ({{ d.get('HOMER', {}).get('heading', '43°') }})**\n"
+                    "- {{ d.get(\"SANTA'S HELPER\", {}).get('status', '🟢 Favorable') }} **Santa's Helper ({{ d.get(\"SANTA'S HELPER\", {}).get('heading', '356°') }})**\n"
+                    "- {{ d.get('LISA', {}).get('status', '🟢 Favorable') }} **Lisa ({{ d.get('LISA', {}).get('heading', '329°') }})**\n"
+                    "- {{ d.get('MAGGIE', {}).get('status', '🟡 Marginal') }} **Maggie ({{ d.get('MAGGIE', {}).get('heading', '297°') }})**\n"
+                    "- {{ d.get('MARGE', {}).get('status', '🟡 Marginal') }} **Marge ({{ d.get('MARGE', {}).get('heading', '89°') }})**\n"
+                    "- {{ d.get('BART', {}).get('status', '🔴 Unfavorable') }} **Bart ({{ d.get('BART', {}).get('heading', '177°') }})**\n"
+                    "{% endif %}\n\n"
+                    "---\n\n"
+                    "### 📊 Property Movement Distribution ({{ state_attr('sensor.stealthcam_property_movement', 'total_captures') | default(200) }} Analyzed Captures)\n"
+                    "- 🌅 **Dawn Transitions (5:00 AM – 8:59 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'morning_pct') | default(12) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'morning_hits') | default(24) }} hits) • *Top: Maggie & Homer*\n"
+                    "- ☀️ **Daylight Movement (9:00 AM – 3:59 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'midday_pct') | default(21) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'midday_hits') | default(42) }} hits) • *Top: Bart & Homer*\n"
+                    "- 🌇 **Evening Feeding (4:00 PM – 7:59 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'evening_pct') | default(14) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'evening_hits') | default(28) }} hits) • *Top: Homer & Bart*\n"
+                    "- 🌙 **Night Roaming (8:00 PM – 4:59 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'night_pct') | default(53) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'night_hits') | default(103) }} hits) • *Top: Homer & Maggie*"
+                )
+            },
+            {
+                "type": "entities",
+                "entities": [
+                    {
+                        "type": "custom:fold-entity-row",
+                        "head": {
+                            "type": "section",
+                            "label": "🗺️ Camera Location Map (Click to View)"
+                        },
+                        "padding": 0,
+                        "entities": [
+                            {
+                                "type": "custom:hui-element",
+                                "card_type": "map",
+                                "title": "Camera Location Map",
+                                "default_zoom": 17,
+                                "hours_to_show": 1,
+                                "entities": [
+                                    f"device_tracker.stealthcam_{cam['slug']}" for cam in CAMERAS
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+    cards.append(intelligence_card)
 
     # 2. Camera Cards (One responsive card per camera)
     for cam in CAMERAS:
         cards.append(make_cam_card(cam))
-
-    # 3. Property Map Card
-    cards.append({
-        "type": "map",
-        "title": "🗺️ Property Camera Locations & Stand GPS",
-        "default_zoom": 17,
-        "hours_to_show": 1,
-        "entities": [
-            f"device_tracker.stealthcam_{cam['slug']}" for cam in CAMERAS
-        ]
-    })
 
     return {
         "title": "Trail Cams",

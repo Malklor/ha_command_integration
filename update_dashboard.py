@@ -328,6 +328,7 @@ def build_stand_subview(cam):
             {
                 "type": "custom:button-card",
                 "entity": f"camera.stealthcam_{slug}",
+                "triggers_update": ["input_text.stealthcam_selected_guid", f"camera.stealthcam_{slug}"],
                 "show_entity_picture": True,
                 "show_name": True,
                 "show_label": True,
@@ -345,7 +346,7 @@ def build_stand_subview(cam):
                     f"var sel = states['input_text.stealthcam_selected_guid'] ? states['input_text.stealthcam_selected_guid'].state : ''; "
                     f"var p = photos.find(x => x.guid === sel) || photos[0]; "
                     f"if (!p) return 'No captures available'; "
-                    f"return p.is_buck ? '✨ 🦌 VERIFIED BUCK HIT (Gold Highlighted)' : '📷 Standard Movement Detection'; "
+                    f"return (p.is_buck ? '✨ 🦌 VERIFIED BUCK HIT (Gold Highlighted)' : '📷 Standard Movement Detection') + '  •  (Tap image for raw file)'; "
                     f"]]]"
                 ),
                 "entity_picture": (
@@ -357,7 +358,15 @@ def build_stand_subview(cam):
                     f"]]]"
                 ),
                 "tap_action": {
-                    "action": "none"
+                    "action": "url",
+                    "url_path": (
+                        f"[[[ "
+                        f"var photos = entity.attributes.recent_photos || []; "
+                        f"var sel = states['input_text.stealthcam_selected_guid'] ? states['input_text.stealthcam_selected_guid'].state : ''; "
+                        f"var p = photos.find(x => x.guid === sel) || photos[0]; "
+                        f"return p ? p.image_url : entity.attributes.image_url; "
+                        f"]]]"
+                    )
                 },
                 "styles": {
                     "card": [
@@ -367,11 +376,12 @@ def build_stand_subview(cam):
                         {"border": f"[[[ var photos = entity.attributes.recent_photos || []; var sel = states['input_text.stealthcam_selected_guid'] ? states['input_text.stealthcam_selected_guid'].state : ''; var p = photos.find(x => x.guid === sel) || photos[0]; return (p && p.is_buck) ? '3px solid #f39c12' : '1.5px solid rgba(82, 148, 226, 0.35)'; ]]]"},
                         {"border-bottom": "none"},
                         {"background": "var(--card-background-color, #18181a)"},
-                        {"box-shadow": f"[[[ var photos = entity.attributes.recent_photos || []; var sel = states['input_text.stealthcam_selected_guid'] ? states['input_text.stealthcam_selected_guid'].state : ''; var p = photos.find(x => x.guid === sel) || photos[0]; return (p && p.is_buck) ? '0 0 16px rgba(243, 156, 18, 0.4)' : 'none'; ]]]"}
+                        {"box-shadow": f"[[[ var photos = entity.attributes.recent_photos || []; var sel = states['input_text.stealthcam_selected_guid'] ? states['input_text.stealthcam_selected_guid'].state : ''; var p = photos.find(x => x.guid === sel) || photos[0]; return (p && p.is_buck) ? '0 0 16px rgba(243, 156, 18, 0.4)' : 'none'; ]]]"},
+                        {"cursor": "pointer"}
                     ],
                     "entity_picture": [
                         {"width": "100%"},
-                        {"height": "340px"},
+                        {"height": "380px"},
                         {"object-fit": "contain"},
                         {"background": "#0a0a0a"}
                     ],
@@ -394,6 +404,7 @@ def build_stand_subview(cam):
             {
                 "type": "custom:button-card",
                 "entity": f"camera.stealthcam_{slug}",
+                "triggers_update": ["input_text.stealthcam_selected_guid", f"camera.stealthcam_{slug}"],
                 "name": (
                     f"[[[ "
                     f"var photos = entity.attributes.recent_photos || []; "
@@ -460,12 +471,13 @@ def build_stand_subview(cam):
                     {
                         "type": "custom:button-card",
                         "entity": f"camera.stealthcam_{slug}",
+                        "triggers_update": ["input_text.stealthcam_selected_guid", f"camera.stealthcam_{slug}"],
                         "show_entity_picture": True,
                         "show_name": True,
                         "show_label": True,
                         "entity_picture": p.get("thumb_url") or p.get("image_url"),
                         "name": p.get("time_str", "Recent"),
-                        "label": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '✨ 🦌 VERIFIED BUCK' : '📷 Tap to Enlarge'; ]]]",
+                        "label": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '✨ 🦌 VERIFIED BUCK' : '📷 Tap to View'; ]]]",
                         "tap_action": {
                             "action": "call-service",
                             "service": "input_text.set_value",
@@ -482,7 +494,7 @@ def build_stand_subview(cam):
                                 {"border": f"[[[ var isSel = (states['input_text.stealthcam_selected_guid'] && states['input_text.stealthcam_selected_guid'].state === '{guid}'); var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); if (isSel) return '3px solid #00d2ff'; return (p && p.is_buck) ? '2.5px solid #f39c12' : '1.5px solid rgba(82, 148, 226, 0.35)'; ]]]"},
                                 {"border-bottom": "none"},
                                 {"background": "var(--card-background-color, #1c1c1e)"},
-                                {"box-shadow": f"[[[ var isSel = (states['input_text.stealthcam_selected_guid'] && states['input_text.stealthcam_selected_guid'].state === '{guid}'); if (isSel) return '0 0 12px rgba(0, 210, 255, 0.6)'; var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '0 0 10px rgba(243, 156, 18, 0.4)' : 'none'; ]]]"},
+                                {"box-shadow": f"[[[ var isSel = (states['input_text.stealthcam_selected_guid'] && states['input_text.stealthcam_selected_guid'].state === '{guid}'); if (isSel) return '0 0 14px rgba(0, 210, 255, 0.7)'; var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '0 0 10px rgba(243, 156, 18, 0.4)' : 'none'; ]]]"},
                                 {"cursor": "pointer"}
                             ],
                             "entity_picture": [
@@ -510,6 +522,7 @@ def build_stand_subview(cam):
                     {
                         "type": "custom:button-card",
                         "entity": f"camera.stealthcam_{slug}",
+                        "triggers_update": ["input_text.stealthcam_selected_guid", f"camera.stealthcam_{slug}"],
                         "name": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '🦌 Verified (Untag)' : '🦌 Mark Buck'; ]]]",
                         "show_name": True,
                         "show_icon": False,

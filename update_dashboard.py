@@ -12,12 +12,12 @@ HA_WS = "ws://192.168.131.17:8123/api/websocket"
 HA_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMWUzMzA5ODZkYzQ0YWJiYWM4NmU5OGIxMTJiZDNiNSIsImlhdCI6MTc5MDk3MTMwMiwiZXhwIjoyMTA2MzMxMzAyfQ.wkyHRjBsBKiaEMbXmz_nyGreKnLtwiTTCGuxADaVeqs"
 
 CAMERAS = [
-    {"slug": "homer", "name": "HOMER", "id": "3000211"},
-    {"slug": "maggie", "name": "MAGGIE", "id": "3000779"},
-    {"slug": "santas_helper", "name": "SANTA'S HELPER", "id": "3001315"},
-    {"slug": "lisa", "name": "LISA", "id": "3000767"},
-    {"slug": "marge", "name": "MARGE", "id": "3000223"},
-    {"slug": "bart", "name": "BART", "id": "3000762"},
+    {"slug": "homer", "name": "HOMER", "id": "3000211", "icon": "mdi:donut"},
+    {"slug": "maggie", "name": "MAGGIE", "id": "3000779", "icon": "mdi:pacifier"},
+    {"slug": "santas_helper", "name": "SANTA'S HELPER", "id": "3001315", "icon": "mdi:dog-side"},
+    {"slug": "lisa", "name": "LISA", "id": "3000767", "icon": "mdi:saxophone"},
+    {"slug": "marge", "name": "MARGE", "id": "3000223", "icon": "mdi:necklace"},
+    {"slug": "bart", "name": "BART", "id": "3000762", "icon": "mdi:skateboard"},
 ]
 
 def make_cam_card(cam):

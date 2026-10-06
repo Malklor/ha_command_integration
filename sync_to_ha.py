@@ -114,6 +114,23 @@ class HAStealthCamSyncer:
                 "heading": heading,
                 "last_synced_to_ha": now_iso,
             }
+            # Character-themed icons and avatars for Homer, Bart, Lisa, Maggie, Marge, Santa's Helper
+            simpson_icons = {
+                "homer": "mdi:donut",
+                "bart": "mdi:skateboard",
+                "lisa": "mdi:saxophone",
+                "maggie": "mdi:pacifier",
+                "marge": "mdi:necklace",
+                "santas_helper": "mdi:dog-side",
+            }
+            simpson_avatars = {
+                "homer": "https://upload.wikimedia.org/wikipedia/en/0/02/Homer_Simpson_2006.png",
+                "bart": "https://upload.wikimedia.org/wikipedia/en/a/aa/Bart_Simpson_200px.png",
+                "lisa": "https://upload.wikimedia.org/wikipedia/en/e/ec/Lisa_Simpson.png",
+                "maggie": "https://upload.wikimedia.org/wikipedia/en/9/9d/Maggie_Simpson.png",
+                "marge": "https://upload.wikimedia.org/wikipedia/en/0/0b/Marge_Simpson.png",
+                "santas_helper": "https://upload.wikimedia.org/wikipedia/en/2/2c/Santa%27s_Little_Helper.png",
+            }
 
             # 1. Device Tracker (GPS Location Pin on Property Maps)
             if lat is not None and lon is not None:
@@ -122,14 +139,15 @@ class HAStealthCamSyncer:
                     "not_home",
                     {
                         **common_attrs,
-                        "friendly_name": f"Trail Cam {name}",
+                        "friendly_name": f"{name}",
                         "source_type": "gps",
                         "latitude": lat,
                         "longitude": lon,
                         "gps_accuracy": 5,
                         "battery_level": cam.get("battery_level"),
                         "heading": heading,
-                        "icon": "mdi:map-marker-radius",
+                        "icon": simpson_icons.get(slug, "mdi:target"),
+                        "entity_picture": simpson_avatars.get(slug),
                     }
                 )
                 gps_str = f"{lat:.4f}, {lon:.4f} ({heading})"

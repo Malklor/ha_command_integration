@@ -13,9 +13,16 @@ import requests
 import urllib.parse
 import websockets
 
-HA_URL = "http://192.168.131.17:8123"
-HA_WS = "ws://192.168.131.17:8123/api/websocket"
-HA_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMWUzMzA5ODZkYzQ0YWJiYWM4NmU5OGIxMTJiZDNiNSIsImlhdCI6MTc5MDk3MTMwMiwiZXhwIjoyMTA2MzMxMzAyfQ.wkyHRjBsBKiaEMbXmz_nyGreKnLtwiTTCGuxADaVeqs"
+import os
+
+HA_URL = os.getenv("HA_URL", "http://192.168.131.17:8123")
+HA_WS = os.getenv("HA_WS", "ws://192.168.131.17:8123/api/websocket")
+HA_TOKEN = os.getenv("HA_TOKEN", "")
+if not HA_TOKEN and os.path.exists(".env"):
+    with open(".env") as ef:
+        for line in ef:
+            if line.startswith("HA_TOKEN="):
+                HA_TOKEN = line.split("=", 1)[1].strip()
 
 CAMERAS = [
     {"slug": "homer", "name": "HOMER", "id": "3000211", "icon": "mdi:donut", "heading": "43° NE"},

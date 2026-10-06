@@ -19,8 +19,13 @@ logging.basicConfig(
 )
 _LOGGER = logging.getLogger("tag_listener")
 
-HA_WS = "ws://192.168.131.17:8123/api/websocket"
-HA_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMWUzMzA5ODZkYzQ0YWJiYWM4NmU5OGIxMTJiZDNiNSIsImlhdCI6MTc5MDk3MTMwMiwiZXhwIjoyMTA2MzMxMzAyfQ.wkyHRjBsBKiaEMbXmz_nyGreKnLtwiTTCGuxADaVeqs"
+HA_WS = os.getenv("HA_WS", "ws://192.168.131.17:8123/api/websocket")
+HA_TOKEN = os.getenv("HA_TOKEN", "")
+if not HA_TOKEN and os.path.exists(".env"):
+    with open(".env") as ef:
+        for line in ef:
+            if line.startswith("HA_TOKEN="):
+                HA_TOKEN = line.split("=", 1)[1].strip()
 TAGGED_FILE = "/home/tgoetz/Projects/ha_command_integration/tagged_bucks.json"
 
 def toggle_buck(guid: str) -> bool:

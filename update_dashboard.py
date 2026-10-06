@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-Fully responsive Lovelace view for Stealth Cam Trail Cameras.
-Renders responsive columns on Desktop and 1 clean column on Mobile.
+Comprehensive Trail Cams Dashboard & Stand Deep-Dive Subviews.
+Features:
+1. Main Hub: Responsive Hunting Intelligence card with toggleable Camera Location Map, and 6 camera cards.
+2. Each Camera Card: In-card recent photo reel thumbnails, buck hit counters, and detailed movement stats.
+3. Dedicated Subviews (/lovelace-basement/stand-<slug>): Full historical photo gallery, animal scoring, and deep stand telemetry.
 """
 
 import asyncio
@@ -12,12 +15,12 @@ HA_WS = "ws://192.168.131.17:8123/api/websocket"
 HA_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMWUzMzA5ODZkYzQ0YWJiYWM4NmU5OGIxMTJiZDNiNSIsImlhdCI6MTc5MDk3MTMwMiwiZXhwIjoyMTA2MzMxMzAyfQ.wkyHRjBsBKiaEMbXmz_nyGreKnLtwiTTCGuxADaVeqs"
 
 CAMERAS = [
-    {"slug": "homer", "name": "HOMER", "id": "3000211", "icon": "mdi:donut"},
-    {"slug": "maggie", "name": "MAGGIE", "id": "3000779", "icon": "mdi:pacifier"},
-    {"slug": "santas_helper", "name": "SANTA'S HELPER", "id": "3001315", "icon": "mdi:dog-side"},
-    {"slug": "lisa", "name": "LISA", "id": "3000767", "icon": "mdi:saxophone"},
-    {"slug": "marge", "name": "MARGE", "id": "3000223", "icon": "mdi:necklace"},
-    {"slug": "bart", "name": "BART", "id": "3000762", "icon": "mdi:skateboard"},
+    {"slug": "homer", "name": "HOMER", "id": "3000211", "icon": "mdi:donut", "heading": "43° NE"},
+    {"slug": "maggie", "name": "MAGGIE", "id": "3000779", "icon": "mdi:pacifier", "heading": "297° WNW"},
+    {"slug": "santas_helper", "name": "SANTA'S HELPER", "id": "3001315", "icon": "mdi:dog-side", "heading": "356° N"},
+    {"slug": "lisa", "name": "LISA", "id": "3000767", "icon": "mdi:saxophone", "heading": "329° NNW"},
+    {"slug": "marge", "name": "MARGE", "id": "3000223", "icon": "mdi:necklace", "heading": "89° E"},
+    {"slug": "bart", "name": "BART", "id": "3000762", "icon": "mdi:skateboard", "heading": "177° S"},
 ]
 
 def make_cam_card(cam):
@@ -45,7 +48,8 @@ def make_cam_card(cam):
                     f"]]]"
                 ),
                 "tap_action": {
-                    "action": "more-info"
+                    "action": "navigate",
+                    "navigation_path": f"/lovelace-basement/stand-{slug}"
                 },
                 "styles": {
                     "card": [
@@ -53,7 +57,8 @@ def make_cam_card(cam):
                         {"overflow": "hidden"},
                         {"padding": "0"},
                         {"border": "none"},
-                        {"background": "var(--card-background-color, #1c1c1e)"}
+                        {"background": "var(--card-background-color, #1c1c1e)"},
+                        {"cursor": "pointer"}
                     ],
                     "entity_picture": [
                         {"width": "100%"},
@@ -89,7 +94,7 @@ def make_cam_card(cam):
                         "type": "custom:fold-entity-row",
                         "head": {
                             "type": "section",
-                            "label": "📍 Stand Intel & GPS (Expand)"
+                            "label": "📊 Stand Intel & Recent Captures (Expand)"
                         },
                         "entities": [
                             {
@@ -125,6 +130,36 @@ def make_cam_card(cam):
                         ]
                     }
                 ]
+            },
+            {
+                "type": "custom:button-card",
+                "name": "📸 View Full Stand Photo Gallery & Deep Analytics",
+                "icon": "mdi:image-multiple",
+                "show_name": True,
+                "show_icon": True,
+                "tap_action": {
+                    "action": "navigate",
+                    "navigation_path": f"/lovelace-basement/stand-{slug}"
+                },
+                "styles": {
+                    "card": [
+                        {"border-radius": "0 0 12px 12px"},
+                        {"padding": "6px 12px"},
+                        {"background": "rgba(82, 148, 226, 0.08)"},
+                        {"border-top": "1px solid rgba(82, 148, 226, 0.15)"},
+                        {"cursor": "pointer"}
+                    ],
+                    "name": [
+                        {"font-size": "12px"},
+                        {"font-weight": "600"},
+                        {"color": "var(--primary-color, #5294e2)"},
+                        {"text-align": "center"}
+                    ],
+                    "grid": [
+                        {"grid-template-columns": "24px 1fr"},
+                        {"grid-template-areas": "'i n'"}
+                    ]
+                }
             }
         ]
     }
@@ -234,6 +269,75 @@ def build_trail_cams_view():
         "cards": cards
     }
 
+def build_stand_subview(cam):
+    slug = cam["slug"]
+    name = cam["name"]
+    heading = cam["heading"]
+
+    # 1. Stand Navigation Header
+    header_card = {
+        "type": "markdown",
+        "content": (
+            f"## 🦌 {name} Stand Intelligence & Photo Gallery\n"
+            f"**Field Position:** {{{{ states('sensor.stealthcam_{slug}_location') }}}}  •  **Heading:** {heading}\n"
+            f"[⬅️ Return to Trail Cams Hub](/lovelace-basement/trail-cams)"
+        )
+    }
+
+    # 2. Stand Analytics & Hunting Telemetry
+    analytics_card = {
+        "type": "markdown",
+        "title": "📊 Stand Movement & Scent Analysis",
+        "content": (
+            f"### 🎯 Recent Detections\n"
+            f"- 🦌 **Verified Antlered Hits:** `{{{{ states('sensor.stealthcam_{slug}_buck_hits') }}}} Bucks`\n"
+            f"- ⏰ **Peak Movement Time:** `{{{{ states('sensor.stealthcam_{slug}_peak_window') }}}}`\n"
+            f"- 🎯 **Last Verified Hit:** `{{{{ states('sensor.stealthcam_{slug}_last_hit') }}}}`\n\n"
+            f"---\n\n"
+            f"### 🌤️ Stand Weather & Telemetry\n"
+            f"- 🌡️ **Field Temperature:** `{{{{ states('sensor.stealthcam_{slug}_temperature') }}}}°F`\n"
+            f"- 📈 **Barometric Pressure:** `{{{{ states('sensor.stealthcam_{slug}_pressure') }}}} inHg` ({{{{ state_attr('sensor.stealthcam_{slug}_pressure', 'pressure_tendency') | default('Steady') }}}})\n"
+            f"- 💨 **Live Field Wind:** `{{{{ states('sensor.stealthcam_{slug}_wind') }}}}`\n"
+            f"- 🌔 **Moon Phase:** `{{{{ states('sensor.stealthcam_{slug}_moon_phase') }}}}`\n"
+            f"- 🔋 **Battery Level:** `{{{{ states('sensor.stealthcam_{slug}_battery') }}}}%` ({{{{ state_attr('sensor.stealthcam_{slug}_battery', 'battery_volt') }}}}V)\n"
+            f"- 📶 **Cellular Signal:** `{{{{ states('sensor.stealthcam_{slug}_signal') }}}}`"
+        )
+    }
+
+    # 3. Dynamic Photo Gallery (All Recent Captures & Buck Hits)
+    gallery_card = {
+        "type": "markdown",
+        "title": "📸 Recent Captures & Animal Photo Reel",
+        "content": (
+            f"{{% set photos = state_attr('camera.stealthcam_{slug}', 'recent_photos') %}}\n"
+            f"{{% if photos and photos | length > 0 %}}\n"
+            f"| Capture Timestamp | Classification | Photo Link |\n"
+            f"| :--- | :--- | :--- |\n"
+            f"{{% for p in photos %}}\n"
+            f"| 🕒 **{{{{ p.time_str }}}}** | {{{{ '🦌 **VERIFIED BUCK HIT**' if p.is_buck else '📷 Animal Movement' }}}} | [🔍 View High-Res Image]({{{{ p.image_url }}}}) |\n"
+            f"{{% endfor %}}\n"
+            f"{{% else %}}\n"
+            f"*No recent captures recorded for this camera yet.*\n"
+            f"{{% endif %}}"
+        )
+    }
+
+    # 4. Stand Map Card
+    stand_map = {
+        "type": "map",
+        "title": f"🗺️ {name} Stand Position",
+        "default_zoom": 18,
+        "hours_to_show": 1,
+        "entities": [f"device_tracker.stealthcam_{slug}"]
+    }
+
+    return {
+        "title": f"{name} Stand",
+        "path": f"stand-{slug}",
+        "subview": True,
+        "cards": [header_card, analytics_card, gallery_card, stand_map]
+    }
+
 async def update_dashboard():
     async with websockets.connect(HA_WS) as ws:
         await ws.recv()
@@ -257,7 +361,7 @@ async def update_dashboard():
         config = res["result"]
         views = config.get("views", [])
         
-        # Replace trail-cams view
+        # 1. Update main trail-cams view
         trail_view = build_trail_cams_view()
         found = False
         for idx, v in enumerate(views):
@@ -265,9 +369,20 @@ async def update_dashboard():
                 views[idx] = trail_view
                 found = True
                 break
-        
         if not found:
             views.append(trail_view)
+
+        # 2. Add/update dedicated stand subviews
+        for cam in CAMERAS:
+            stand_view = build_stand_subview(cam)
+            s_found = False
+            for idx, v in enumerate(views):
+                if v.get("path") == stand_view["path"]:
+                    views[idx] = stand_view
+                    s_found = True
+                    break
+            if not s_found:
+                views.append(stand_view)
 
         config["views"] = views
 
@@ -280,7 +395,7 @@ async def update_dashboard():
         }))
         save_res = json.loads(await ws.recv())
         if save_res.get("success"):
-            print("Successfully updated Trail Cams dashboard with responsive desktop/mobile layout!")
+            print("Successfully updated Trail Cams dashboard with Stand Deep-Dive subviews & photo galleries!")
         else:
             print("Failed to save lovelace config:", save_res)
 

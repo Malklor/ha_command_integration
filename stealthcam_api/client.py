@@ -226,6 +226,29 @@ class StealthCamClient:
                 if max_w[1] > 0:
                     peak_window = f"{max_w[0]} ({round((max_w[1] / total_hits) * 100)}%)"
 
+            recent_photos = []
+            buck_photos = []
+            for c in dev_captures[:12]:
+                img_urls = c.get("imageUrls") or []
+                thumb_urls = c.get("thumbnailUrls") or []
+                cdt = c.get("createdDateTime") or c.get("uploadedTime")
+                time_str = "Recent"
+                if cdt:
+                    try:
+                        time_str = datetime.datetime.fromisoformat(cdt).strftime("%b %-d, %-I:%M %p")
+                    except Exception:
+                        time_str = str(cdt)[:16]
+                p_data = {
+                    "image_url": img_urls[0] if img_urls else None,
+                    "thumb_url": thumb_urls[0] if thumb_urls else (img_urls[0] if img_urls else None),
+                    "time_str": time_str,
+                    "is_buck": c.get("isBuckScored", False),
+                    "guid": c.get("imageGuid"),
+                }
+                recent_photos.append(p_data)
+                if c.get("isBuckScored"):
+                    buck_photos.append(p_data)
+
             rotate_angle = dev.get("rotateAngle")
             heading_cardinal = degrees_to_cardinal(rotate_angle) if rotate_angle is not None else "N/A"
 
@@ -269,5 +292,7 @@ class StealthCamClient:
                 "night_hits": night_hits,
                 "midday_hits": midday_hits,
                 "peak_window": peak_window,
+                "recent_photos": recent_photos,
+                "buck_photos": buck_photos,
             }
         return result

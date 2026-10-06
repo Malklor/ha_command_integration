@@ -382,6 +382,8 @@ class HAStealthCamSyncer:
                 "battery_level": cam.get("battery_level"),
                 "signal": cam.get("signal_strength"),
                 "heading": heading,
+                "recent_photos": cam.get("recent_photos", []),
+                "buck_photos": cam.get("buck_photos", []),
             }
             self.post_state(
                 f"camera.stealthcam_{slug}",

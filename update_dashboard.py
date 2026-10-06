@@ -104,8 +104,8 @@ def make_cam_card(cam):
                                 "icon": "mdi:clock-outline"
                             },
                             {
-                                "entity": f"device_tracker.stealthcam_{slug}",
-                                "name": "GPS Stand Location & Heading",
+                                "entity": f"sensor.stealthcam_{slug}_location",
+                                "name": "GPS Coordinates & Heading",
                                 "icon": "mdi:crosshairs-gps"
                             },
                             {

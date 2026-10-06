@@ -132,6 +132,23 @@ class HAStealthCamSyncer:
                         "icon": "mdi:map-marker-radius",
                     }
                 )
+                gps_str = f"{lat:.4f}, {lon:.4f} ({heading})"
+            else:
+                gps_str = "No GPS lock"
+
+            # 1b. GPS & Heading Display Sensor (Readable coordinates instead of HA 'away' state)
+            self.post_state(
+                f"sensor.stealthcam_{slug}_location",
+                gps_str,
+                {
+                    **common_attrs,
+                    "friendly_name": f"{name} Stand Location & Heading",
+                    "latitude": lat,
+                    "longitude": lon,
+                    "heading": heading,
+                    "icon": "mdi:crosshairs-gps",
+                }
+            )
 
             # 2. Battery Sensor
             battery_attrs = {

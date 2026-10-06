@@ -47,9 +47,8 @@ def toggle_buck(guid: str) -> bool:
 
     _LOGGER.info("Toggled buck status for GUID %s -> %s", guid, new_state)
 
-    # Sync entities & refresh views
+    # Sync entities to HA (Lovelace custom:button-card updates reactively)
     subprocess.run(["python3", "/home/tgoetz/Projects/ha_command_integration/sync_to_ha.py"], check=False)
-    subprocess.run(["python3", "/home/tgoetz/Projects/ha_command_integration/update_dashboard.py"], check=False)
     return new_state
 
 async def run_listener():

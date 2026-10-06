@@ -1,7 +1,9 @@
 """Stealth Cam Command API Client."""
 
 import datetime
+import json
 import logging
+import os
 import time
 from typing import Any, Dict, List, Optional
 import requests

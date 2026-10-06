@@ -165,29 +165,64 @@ def build_trail_cams_view():
                 )
             },
             {
-                "type": "entities",
-                "entities": [
-                    {
-                        "type": "custom:fold-entity-row",
-                        "head": {
-                            "type": "section",
-                            "label": "🗺️ Camera Location Map (Click to View)"
-                        },
-                        "padding": 0,
-                        "entities": [
-                            {
-                                "type": "custom:hui-element",
-                                "card_type": "map",
-                                "title": "Camera Location Map",
-                                "default_zoom": 17,
-                                "hours_to_show": 1,
-                                "entities": [
-                                    f"device_tracker.stealthcam_{cam['slug']}" for cam in CAMERAS
-                                ]
-                            }
-                        ]
+                "type": "custom:button-card",
+                "entity": "input_boolean.trail_cam_show_map",
+                "name": "🗺️ Camera Location Map",
+                "show_name": True,
+                "show_icon": True,
+                "icon": "mdi:map-marker-radius",
+                "show_state": False,
+                "show_label": True,
+                "label": "[[[ return (entity.state === 'on') ? '▼ Tap to Hide Map' : '▶ Tap to Show Map'; ]]]",
+                "tap_action": {
+                    "action": "call-service",
+                    "service": "homeassistant.toggle",
+                    "service_data": {
+                        "entity_id": "input_boolean.trail_cam_show_map"
                     }
-                ]
+                },
+                "styles": {
+                    "card": [
+                        {"border-radius": "0 0 12px 12px"},
+                        {"padding": "8px 16px"},
+                        {"background": "rgba(82, 148, 226, 0.12)"},
+                        {"border-top": "1px solid rgba(82, 148, 226, 0.25)"},
+                        {"cursor": "pointer"}
+                    ],
+                    "name": [
+                        {"font-size": "14px"},
+                        {"font-weight": "700"},
+                        {"color": "var(--primary-text-color)"},
+                        {"text-align": "left"}
+                    ],
+                    "label": [
+                        {"font-size": "12px"},
+                        {"color": "var(--secondary-text-color)"},
+                        {"text-align": "right"}
+                    ],
+                    "grid": [
+                        {"grid-template-columns": "32px 1fr auto"},
+                        {"grid-template-areas": "'i n l'"}
+                    ]
+                }
+            },
+            {
+                "type": "conditional",
+                "conditions": [
+                    {
+                        "entity": "input_boolean.trail_cam_show_map",
+                        "state": "on"
+                    }
+                ],
+                "card": {
+                    "type": "map",
+                    "title": "Camera Location Map",
+                    "default_zoom": 17,
+                    "hours_to_show": 1,
+                    "entities": [
+                        f"device_tracker.stealthcam_{cam['slug']}" for cam in CAMERAS
+                    ]
+                }
             }
         ]
     }

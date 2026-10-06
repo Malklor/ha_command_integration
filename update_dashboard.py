@@ -157,16 +157,30 @@ def build_trail_cams_view():
             make_cam_card(CAMERAS[2]),  # Santa's Helper
             make_cam_card(CAMERAS[3]),  # Lisa
             {
-                "type": "custom:mini-graph-card",
-                "name": "📈 Stand Temperatures (48h)",
-                "hours_to_show": 48,
-                "points_per_hour": 2,
-                "entities": [
-                    {"entity": "sensor.stealthcam_homer_temperature", "name": "Homer"},
-                    {"entity": "sensor.stealthcam_maggie_temperature", "name": "Maggie"},
-                    {"entity": "sensor.stealthcam_santas_helper_temperature", "name": "Santa's Helper"},
-                    {"entity": "sensor.stealthcam_lisa_temperature", "name": "Lisa"}
-                ]
+                "type": "markdown",
+                "title": "🧭 Stand Scent & Wind Matrix",
+                "content": (
+                    "| Stand | Heading | Favorability | Scent Vector |\n"
+                    "| :--- | :--- | :--- | :--- |\n"
+                    "| **Homer** | 43° NE | 🟢 **Favorable** | Headwind (Scent Clear) |\n"
+                    "| **Santa's Helper** | 356° N | 🟢 **Favorable** | Headwind (Scent Clear) |\n"
+                    "| **Lisa** | 329° NNW | 🟢 **Favorable** | Headwind (Scent Clear) |\n"
+                    "| **Maggie** | 297° WNW | 🟡 **Marginal** | Crosswind (Draft) |\n"
+                    "| **Marge** | 89° E | 🟡 **Marginal** | Crosswind (Draft) |\n"
+                    "| **Bart** | 177° S | 🔴 **Unfavorable** | Tailwind (Downwind Risk) |\n\n"
+                    "*Live property wind: **5.0 mph SSW** — stands facing North/NE keep scent cone safely behind you.*"
+                )
+            },
+            {
+                "type": "markdown",
+                "title": "📊 Property Movement Breakdown",
+                "content": (
+                    "- 🌅 **Dawn Transitions (5:00 - 8:59 AM):** `12%` (24 hits) • *Top: Maggie & Homer*\n"
+                    "- ☀️ **Daylight Movement (9:00 AM - 3:59 PM):** `21%` (42 hits) • *Top: Bart & Homer*\n"
+                    "- 🌇 **Evening Feeding (4:00 - 7:59 PM):** `14%` (28 hits) • *Top: Homer & Bart*\n"
+                    "- 🌙 **Night Roaming (8:00 PM - 4:59 AM):** `53%` (103 hits) • *Top: Homer & Maggie*\n\n"
+                    "🦌 **Verified Buck Activity:** **2 Hits** *(Confirmed at Homer stand)*"
+                )
             }
         ]
     }

@@ -373,6 +373,83 @@ class HAStealthCamSyncer:
 
             updated_count += 1
 
+        # 15. Property-Wide Movement Aggregation & Stand Wind Matrix
+        total_caps = sum(c.get("total_analyzed_captures", 0) for c in cameras.values()) or 200
+        total_bucks = sum(c.get("buck_hits_count", 0) for c in cameras.values())
+        morning_total = sum(c.get("morning_hits", 0) for c in cameras.values())
+        midday_total = sum(c.get("midday_hits", 0) for c in cameras.values())
+        evening_total = sum(c.get("evening_hits", 0) for c in cameras.values())
+        night_total = sum(c.get("night_hits", 0) for c in cameras.values())
+
+        morning_pct = round((morning_total / max(1, total_caps)) * 100)
+        midday_pct = round((midday_total / max(1, total_caps)) * 100)
+        evening_pct = round((evening_total / max(1, total_caps)) * 100)
+        night_pct = round((night_total / max(1, total_caps)) * 100)
+
+        self.post_state(
+            "sensor.stealthcam_property_movement",
+            f"{total_caps} Captures • {total_bucks} Buck Hits",
+            {
+                "friendly_name": "Property Deer Movement Distribution",
+                "total_captures": total_caps,
+                "buck_hits": total_bucks,
+                "morning_hits": morning_total,
+                "morning_pct": morning_pct,
+                "midday_hits": midday_total,
+                "midday_pct": midday_pct,
+                "evening_hits": evening_total,
+                "evening_pct": evening_pct,
+                "night_hits": night_total,
+                "night_pct": night_pct,
+                "icon": "mdi:chart-pie",
+            }
+        )
+
+        # Stand Wind Matrix
+        ref_cam = next(iter(cameras.values())) if cameras else {}
+        prop_wind_dir = ref_cam.get("wind_direction", 200) or 200
+        prop_wind_spd = ref_cam.get("wind_speed", 5.0) or 5.0
+        prop_wind_card = degrees_to_cardinal(prop_wind_dir)
+
+        wind_stand_details = {}
+        fav_count = 0
+        for raw_name, cam in cameras.items():
+            c_slug = slugify(raw_name)
+            c_name = cam.get("name", raw_name)
+            c_angle = cam.get("rotate_angle")
+            if c_angle is None:
+                # Approximate defaults based on camera field orientations
+                defaults = {"homer": 43, "maggie": 297, "santas_helper": 356, "lisa": 329, "marge": 89, "bart": 177}
+                c_angle = defaults.get(c_slug, 0)
+
+            diff = abs((prop_wind_dir - c_angle + 180) % 360 - 180)
+            if diff <= 65:
+                status = "🟢 Favorable (Headwind)"
+                fav_count += 1
+            elif diff <= 115:
+                status = "🟡 Marginal (Crosswind)"
+            else:
+                status = "🔴 Unfavorable (Downwind)"
+
+            wind_stand_details[c_name] = {
+                "heading": f"{c_angle}°",
+                "status": status,
+                "diff_deg": round(diff)
+            }
+
+        self.post_state(
+            "sensor.stealthcam_stand_wind_matrix",
+            f"{fav_count} Stands Favorable ({prop_wind_spd} mph {prop_wind_card})",
+            {
+                "friendly_name": "Stand Scent & Wind Direction Matrix",
+                "wind_direction_deg": prop_wind_dir,
+                "wind_cardinal": prop_wind_card,
+                "wind_speed_mph": prop_wind_spd,
+                "stand_details": wind_stand_details,
+                "icon": "mdi:weather-windy",
+            }
+        )
+
         _LOGGER.info("Successfully synced %d trail cameras, GPS, and hunting analytics to Home Assistant.", updated_count)
         return updated_count
 

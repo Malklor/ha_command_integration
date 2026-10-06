@@ -166,7 +166,7 @@ def build_trail_cams_view():
             },
             {
                 "type": "custom:button-card",
-                "entity": "input_boolean.trail_cam_show_map",
+                "entity": "input_boolean.show_camera_location_map",
                 "name": "🗺️ Camera Location Map",
                 "show_name": True,
                 "show_icon": True,
@@ -175,11 +175,7 @@ def build_trail_cams_view():
                 "show_label": True,
                 "label": "[[[ return (entity.state === 'on') ? '▼ Tap to Hide Map' : '▶ Tap to Show Map'; ]]]",
                 "tap_action": {
-                    "action": "call-service",
-                    "service": "homeassistant.toggle",
-                    "service_data": {
-                        "entity_id": "input_boolean.trail_cam_show_map"
-                    }
+                    "action": "toggle"
                 },
                 "styles": {
                     "card": [
@@ -210,7 +206,7 @@ def build_trail_cams_view():
                 "type": "conditional",
                 "conditions": [
                     {
-                        "entity": "input_boolean.trail_cam_show_map",
+                        "entity": "input_boolean.show_camera_location_map",
                         "state": "on"
                     }
                 ],

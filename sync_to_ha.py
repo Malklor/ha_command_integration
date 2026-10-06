@@ -123,14 +123,14 @@ class HAStealthCamSyncer:
                 "marge": "mdi:necklace",
                 "santas_helper": "mdi:dog-side",
             }
-            simpson_avatars = {
-                "homer": "https://upload.wikimedia.org/wikipedia/en/0/02/Homer_Simpson_2006.png",
-                "bart": "https://upload.wikimedia.org/wikipedia/en/a/aa/Bart_Simpson_200px.png",
-                "lisa": "https://upload.wikimedia.org/wikipedia/en/e/ec/Lisa_Simpson.png",
-                "maggie": "https://upload.wikimedia.org/wikipedia/en/9/9d/Maggie_Simpson.png",
-                "marge": "https://upload.wikimedia.org/wikipedia/en/0/0b/Marge_Simpson.png",
-                "santas_helper": "https://upload.wikimedia.org/wikipedia/en/2/2c/Santa%27s_Little_Helper.png",
-            }
+            avatars_file = "/home/tgoetz/Projects/ha_command_integration/avatars.json"
+            simpson_avatars = {}
+            if os.path.exists(avatars_file):
+                try:
+                    with open(avatars_file) as af:
+                        simpson_avatars = json.load(af)
+                except Exception:
+                    pass
 
             # 1. Device Tracker (GPS Location Pin on Property Maps)
             if lat is not None and lon is not None:

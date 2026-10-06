@@ -197,7 +197,11 @@ class StealthCamClient:
             if dev_captures:
                 last_hit_dt = dev_captures[0].get("createdDateTime") or dev_captures[0].get("uploadedTime")
 
-            tagged_file = "/home/tgoetz/Projects/ha_command_integration/tagged_bucks.json"
+            tagged_file = "/config/stealthcam_tagged_bucks.json"
+            if not os.path.exists(tagged_file):
+                tagged_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tagged_bucks.json")
+            if not os.path.exists(tagged_file):
+                tagged_file = "/home/tgoetz/Projects/ha_command_integration/tagged_bucks.json"
             tagged_bucks = {}
             if os.path.exists(tagged_file):
                 try:

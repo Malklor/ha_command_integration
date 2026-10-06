@@ -7,7 +7,10 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 
-from stealthcam_api.client import StealthCamClient, StealthCamAuthError
+try:
+    from .stealthcam_api.client import StealthCamClient, StealthCamAuthError
+except ImportError:
+    from stealthcam_api.client import StealthCamClient, StealthCamAuthError
 from .const import DOMAIN, CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)

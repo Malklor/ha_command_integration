@@ -10,6 +10,7 @@ Features:
 import asyncio
 import json
 import requests
+import urllib.parse
 import websockets
 
 HA_URL = "http://192.168.131.17:8123"
@@ -320,53 +321,92 @@ def build_stand_subview(cam):
         )
     }
 
-    # 3. Visual Photo Thumbnail Gallery Grid
+    # 3. Visual Photo Thumbnail Gallery Grid with Direct Buck Tagging & Photo Inspector
     gallery_cards = []
     if photos:
         for idx, p in enumerate(photos[:12]):
             is_buck = p.get("is_buck", False)
+            guid = p.get("guid", "")
+            img_u = urllib.parse.quote(p.get("image_url", "") or "")
+            t_str = urllib.parse.quote(p.get("time_str", "Recent") or "")
+            view_url = f"http://192.168.131.17:8125/view?guid={guid}&cam={slug}&url={img_u}&time={t_str}"
+            tag_url = f"http://192.168.131.17:8125/tag?guid={guid}&cam={slug}"
+
             p_card = {
-                "type": "custom:button-card",
-                "show_entity_picture": True,
-                "show_name": True,
-                "show_label": True,
-                "entity_picture": p.get("thumb_url") or p.get("image_url"),
-                "name": p.get("time_str", "Recent"),
-                "label": "🦌 VERIFIED BUCK HIT" if is_buck else "📷 Animal Capture",
-                "tap_action": {
-                    "action": "url",
-                    "url_path": p.get("image_url") or p.get("thumb_url", "#")
-                },
-                "styles": {
-                    "card": [
-                        {"border-radius": "10px"},
-                        {"overflow": "hidden"},
-                        {"padding": "0"},
-                        {"border": "2.5px solid #f39c12" if is_buck else "1.5px solid rgba(82, 148, 226, 0.35)"},
-                        {"background": "var(--card-background-color, #1c1c1e)"},
-                        {"box-shadow": "0 0 12px rgba(243, 156, 18, 0.4)" if is_buck else "0 2px 8px rgba(0, 0, 0, 0.25)"}
-                    ],
-                    "entity_picture": [
-                        {"width": "100%"},
-                        {"height": "160px"},
-                        {"object-fit": "cover"},
-                        {"background": "#000"}
-                    ],
-                    "name": [
-                        {"font-size": "13px"},
-                        {"font-weight": "700"},
-                        {"color": "#fff"},
-                        {"padding": "6px 8px 0px 8px"},
-                        {"text-align": "left"}
-                    ],
-                    "label": [
-                        {"font-size": "11px"},
-                        {"font-weight": "700"},
-                        {"color": "#f39c12" if is_buck else "#70a5eb"},
-                        {"padding": "2px 8px 6px 8px"},
-                        {"text-align": "left"}
-                    ]
-                }
+                "type": "custom:vertical-stack-in-card",
+                "cards": [
+                    {
+                        "type": "custom:button-card",
+                        "show_entity_picture": True,
+                        "show_name": True,
+                        "show_label": True,
+                        "entity_picture": p.get("thumb_url") or p.get("image_url"),
+                        "name": p.get("time_str", "Recent"),
+                        "label": "✨ 🦌 VERIFIED BUCK HIT" if is_buck else "📷 Animal Capture",
+                        "tap_action": {
+                            "action": "url",
+                            "url_path": view_url
+                        },
+                        "styles": {
+                            "card": [
+                                {"border-radius": "10px 10px 0 0"},
+                                {"overflow": "hidden"},
+                                {"padding": "0"},
+                                {"border": "2.5px solid #f39c12" if is_buck else "1.5px solid rgba(82, 148, 226, 0.35)"},
+                                {"border-bottom": "none"},
+                                {"background": "var(--card-background-color, #1c1c1e)"},
+                                {"box-shadow": "0 0 12px rgba(243, 156, 18, 0.4)" if is_buck else "none"},
+                                {"cursor": "pointer"}
+                            ],
+                            "entity_picture": [
+                                {"width": "100%"},
+                                {"height": "160px"},
+                                {"object-fit": "cover"},
+                                {"background": "#000"}
+                            ],
+                            "name": [
+                                {"font-size": "13px"},
+                                {"font-weight": "700"},
+                                {"color": "#fff"},
+                                {"padding": "6px 8px 0px 8px"},
+                                {"text-align": "left"}
+                            ],
+                            "label": [
+                                {"font-size": "11px"},
+                                {"font-weight": "700"},
+                                {"color": "#f39c12" if is_buck else "#70a5eb"},
+                                {"padding": "2px 8px 6px 8px"},
+                                {"text-align": "left"}
+                            ]
+                        }
+                    },
+                    {
+                        "type": "custom:button-card",
+                        "name": "🦌 Verified Buck (Tap to Untag)" if is_buck else "🦌 Mark as Buck",
+                        "show_name": True,
+                        "show_icon": False,
+                        "tap_action": {
+                            "action": "url",
+                            "url_path": tag_url
+                        },
+                        "styles": {
+                            "card": [
+                                {"border-radius": "0 0 10px 10px"},
+                                {"padding": "6px 8px"},
+                                {"background": "rgba(243, 156, 18, 0.2)" if is_buck else "rgba(82, 148, 226, 0.1)"},
+                                {"border": "2.5px solid #f39c12" if is_buck else "1.5px solid rgba(82, 148, 226, 0.35)"},
+                                {"border-top": "none"},
+                                {"cursor": "pointer"}
+                            ],
+                            "name": [
+                                {"font-size": "11px"},
+                                {"font-weight": "700"},
+                                {"color": "#f39c12" if is_buck else "#6ba4f8"},
+                                {"text-align": "center"}
+                            ]
+                        }
+                    }
+                ]
             }
             gallery_cards.append(p_card)
 

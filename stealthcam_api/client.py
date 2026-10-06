@@ -195,8 +195,18 @@ class StealthCamClient:
             if dev_captures:
                 last_hit_dt = dev_captures[0].get("createdDateTime") or dev_captures[0].get("uploadedTime")
 
+            tagged_file = "/home/tgoetz/Projects/ha_command_integration/tagged_bucks.json"
+            tagged_bucks = {}
+            if os.path.exists(tagged_file):
+                try:
+                    with open(tagged_file) as tf:
+                        tagged_bucks = json.load(tf)
+                except Exception:
+                    pass
+
             for c in dev_captures:
-                if c.get("isBuckScored"):
+                guid = c.get("imageGuid")
+                if c.get("isBuckScored") or tagged_bucks.get(guid):
                     buck_hits_count += 1
                 cdt = c.get("createdDateTime")
                 if cdt:
@@ -232,6 +242,8 @@ class StealthCamClient:
                 img_urls = c.get("imageUrls") or []
                 thumb_urls = c.get("thumbnailUrls") or []
                 cdt = c.get("createdDateTime") or c.get("uploadedTime")
+                guid = c.get("imageGuid")
+                is_buck = bool(c.get("isBuckScored") or tagged_bucks.get(guid))
                 time_str = "Recent"
                 if cdt:
                     try:
@@ -242,11 +254,11 @@ class StealthCamClient:
                     "image_url": img_urls[0] if img_urls else None,
                     "thumb_url": thumb_urls[0] if thumb_urls else (img_urls[0] if img_urls else None),
                     "time_str": time_str,
-                    "is_buck": c.get("isBuckScored", False),
-                    "guid": c.get("imageGuid"),
+                    "is_buck": is_buck,
+                    "guid": guid,
                 }
                 recent_photos.append(p_data)
-                if c.get("isBuckScored"):
+                if is_buck:
                     buck_photos.append(p_data)
 
             rotate_angle = dev.get("rotateAngle")

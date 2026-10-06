@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Stealth Cam Command",
+        "description": "Enter your Stealth Cam Command cloud account credentials to connect your cellular trail cameras.",
+        "data": {
+          "email": "Account Email",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Stealth Cam Command cloud API.",
+      "invalid_auth": "Invalid email or password. Please verify your credentials.",
+      "unknown": "Unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This Stealth Cam account is already configured."
+    }
+  }
+}

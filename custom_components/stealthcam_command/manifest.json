@@ -1,0 +1,12 @@
+{
+  "domain": "stealthcam_command",
+  "name": "Stealth Cam Command",
+  "codeowners": ["@Malklor"],
+  "config_flow": true,
+  "documentation": "https://github.com/Malklor/ha_command_integration",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/Malklor/ha_command_integration/issues",
+  "requirements": ["requests>=2.28.0"],
+  "version": "1.0.0"
+}

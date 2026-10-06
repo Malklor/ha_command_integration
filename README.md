@@ -17,8 +17,9 @@ Provides real-time hardware telemetry, cellular connectivity monitoring, field w
 - 📸 **High-Resolution Photo Feeds**: Native camera entities with high-resolution image proxies, thumbnail galleries, and full-screen inspection.
 - 🌤️ **Field Environmental Sensors**: Ambient field temperature (`°F`), barometric pressure (`inHg`), pressure trend, wind speed & compass direction, and moon phase.
 - 🧭 **Stand Scent & Wind Direction Matrix**: Evaluates current field wind against each camera stand's physical heading to compute favorable, marginal, or unfavorable hunting conditions.
-- 🦌 **1-Tap Buck Tagging & Score Tracking**: Tag captures as verified antlered bucks with real-time gold badge highlights and stand analytics.
+- 🦌 **Multi-Classification Photo Tagging**: 1-tap tagging for **Bucks (Gold ✨)**, **Does (Blue 🦌)**, and **Human Activity (Red Alert 🚨)** with automatic visual borders and glow badges.
 - ⏱️ **Dual 24-Hour & All-Time Movement Distribution**: Classifies both rolling 24-hour activity and historical trends across Dawn Transitions (5–9 AM), Daylight Movement (9 AM–4 PM), Evening Feeding (4–8 PM), and Night Roaming (8 PM–5 AM).
+- 🚨 **Human Activity & Intruder Detection**: Flags cameras with human presence to immediately alert landowners of field activity.
 - 🗺️ **GPS Mapping & Stand Tracking**: Tracks camera positions on Home Assistant maps with custom stand character pins and compass headings.
 
 ---
@@ -69,9 +70,25 @@ Provides real-time hardware telemetry, cellular connectivity monitoring, field w
 The integration registers native services for dashboard interactions and automations:
 
 ### `stealthcam_command.tag_buck`
-Tags or scores a photo capture as a verified antlered buck:
+Tags or scores a photo capture as a verified antlered buck (Gold badge):
 ```yaml
 service: stealthcam_command.tag_buck
+data:
+  guid: "01a1109a-f850-73a7-9fb2-8b1be1024262"
+```
+
+### `stealthcam_command.tag_doe`
+Tags a photo capture as a verified doe (Blue badge):
+```yaml
+service: stealthcam_command.tag_doe
+data:
+  guid: "01a1109a-f850-73a7-9fb2-8b1be1024262"
+```
+
+### `stealthcam_command.tag_person`
+Flags a photo capture for human activity (Red Alert badge):
+```yaml
+service: stealthcam_command.tag_person
 data:
   guid: "01a1109a-f850-73a7-9fb2-8b1be1024262"
 ```

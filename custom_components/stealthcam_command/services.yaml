@@ -1,6 +1,6 @@
 tag_buck:
   name: Tag / Untag Buck
-  description: Toggle or set the verified antlered buck state for a trail camera photo capture.
+  description: Toggle or set the verified antlered buck state (Gold badge) for a trail camera capture.
   fields:
     guid:
       name: Image GUID
@@ -9,6 +9,53 @@ tag_buck:
       example: "01a1109a-f850-73a7-9fb2-8b1be1024262"
       selector:
         text:
+
+tag_doe:
+  name: Tag / Untag Doe
+  description: Toggle or set the verified antlerless doe state (Blue badge) for a trail camera capture.
+  fields:
+    guid:
+      name: Image GUID
+      description: The unique GUID identifier of the capture.
+      required: true
+      example: "01a1109a-f850-73a7-9fb2-8b1be1024262"
+      selector:
+        text:
+
+tag_person:
+  name: Flag Human Activity
+  description: Toggle or set a human detection flag (Red Alert badge) for a trail camera capture.
+  fields:
+    guid:
+      name: Image GUID
+      description: The unique GUID identifier of the capture.
+      required: true
+      example: "01a1109a-f850-73a7-9fb2-8b1be1024262"
+      selector:
+        text:
+
+tag_photo:
+  name: Tag Photo Capture
+  description: Set or toggle any classification (buck, doe, person) on a trail camera capture.
+  fields:
+    guid:
+      name: Image GUID
+      description: The unique GUID identifier of the capture.
+      required: true
+      example: "01a1109a-f850-73a7-9fb2-8b1be1024262"
+      selector:
+        text:
+    type:
+      name: Tag Classification
+      description: Classification type (buck, doe, person).
+      required: false
+      example: "buck"
+      selector:
+        select:
+          options:
+            - "buck"
+            - "doe"
+            - "person"
 
 toggle_buck:
   name: Toggle Buck Tag

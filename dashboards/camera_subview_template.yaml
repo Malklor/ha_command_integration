@@ -19,8 +19,10 @@ cards:
   - type: markdown
     title: "📊 Activity & Trends"
     content: |
-      ### 🦌 Buck Activity
-      - 🦌 **Verified Bucks:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_positive_buck_hits') }} hits` *(Highlighted in Gold below)*
+      ### 🦌 Deer & Wildlife Intelligence
+      - 🦌 **Verified Bucks:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_positive_buck_hits') }} hits` *(Gold Highlight)*
+      - 🦌 **Verified Does:** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'doe_hits_count') | default(0) }} hits` *(Blue Highlight)*
+      - 🚨 **Human Activity:** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'person_hits_count') | default(0) }} detections` *(Red Alert)*
       - 🎯 **Last Hit:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit') }}`
       - ⏰ **Peak Window:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_peak_movement_window') }}`
 
@@ -68,7 +70,14 @@ cards:
             show_label: true
             name: "[[[ return entity.attributes.time_str || 'Recent Capture'; ]]]"
             entity_picture: "[[[ return entity.attributes.thumbnail_url || entity.attributes.image_url; ]]]"
-            label: "[[[ return entity.attributes.is_buck ? '✨ 🦌 VERIFIED BUCK' : '🔍 Tap for Photo'; ]]]"
+            label: |
+              [[[
+                var tag = entity.attributes.tag || '';
+                if (entity.attributes.is_buck || tag === 'buck') return '✨ 🦌 VERIFIED BUCK';
+                if (entity.attributes.is_doe || tag === 'doe') return '🦌 VERIFIED DOE';
+                if (entity.attributes.is_person || tag === 'person') return '🚨 👤 HUMAN ACTIVITY';
+                return '🔍 Tap for Photo';
+              ]]]
             tap_action:
               action: more-info
             styles:
@@ -76,8 +85,22 @@ cards:
                 - border-radius: 10px
                 - padding: 0
                 - overflow: hidden
-                - border: "[[[ return entity.attributes.is_buck ? '2.5px solid #f39c12' : '1.5px solid rgba(82, 148, 226, 0.35)'; ]]]"
-                - box-shadow: "[[[ return entity.attributes.is_buck ? '0 0 14px rgba(243, 156, 18, 0.55)' : 'none'; ]]]"
+                - border: |
+                    [[[
+                      var tag = entity.attributes.tag || '';
+                      if (entity.attributes.is_buck || tag === 'buck') return '2.5px solid #f39c12';
+                      if (entity.attributes.is_doe || tag === 'doe') return '2.5px solid #3498db';
+                      if (entity.attributes.is_person || tag === 'person') return '2.5px solid #e74c3c';
+                      return '1.5px solid rgba(82, 148, 226, 0.35)';
+                    ]]]
+                - box-shadow: |
+                    [[[
+                      var tag = entity.attributes.tag || '';
+                      if (entity.attributes.is_buck || tag === 'buck') return '0 0 14px rgba(243, 156, 18, 0.55)';
+                      if (entity.attributes.is_doe || tag === 'doe') return '0 0 14px rgba(52, 152, 219, 0.55)';
+                      if (entity.attributes.is_person || tag === 'person') return '0 0 14px rgba(231, 76, 60, 0.65)';
+                      return 'none';
+                    ]]]
                 - background: var(--card-background-color, #1c1c1e)
                 - cursor: pointer
               entity_picture:
@@ -94,6 +117,13 @@ cards:
               label:
                 - font-size: 11px
                 - font-weight: 700
-                - color: "[[[ return entity.attributes.is_buck ? '#f39c12' : '#70a5eb'; ]]]"
+                - color: |
+                    [[[
+                      var tag = entity.attributes.tag || '';
+                      if (entity.attributes.is_buck || tag === 'buck') return '#f39c12';
+                      if (entity.attributes.is_doe || tag === 'doe') return '#3498db';
+                      if (entity.attributes.is_person || tag === 'person') return '#e74c3c';
+                      return '#70a5eb';
+                    ]]]
                 - padding: 2px 8px 6px 8px
                 - text-align: left

@@ -14,10 +14,10 @@ PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.CAMERA]
 TAGGED_FILE = "/config/stealthcam_tagged_bucks.json"
 
 
-def _toggle_buck_tag(guid: str) -> bool:
-    """Read, toggle, and save buck tag in HA storage."""
+def _toggle_tag(guid: str, tag_type: str = "buck") -> str:
+    """Read, toggle, and save photo tag in HA storage."""
     if not guid or guid in ["", "none", "idle", "test_guid_123", "unknown"]:
-        return False
+        return ""
     data = {}
     if os.path.exists(TAGGED_FILE):
         try:
@@ -25,18 +25,23 @@ def _toggle_buck_tag(guid: str) -> bool:
                 data = json.load(f)
         except Exception:
             pass
-    curr = data.get(guid, False)
-    new_state = not curr
-    if new_state:
-        data[guid] = True
-    else:
+    curr = data.get(guid)
+    if curr is True:
+        curr = "buck"
+
+    if curr == tag_type:
         data.pop(guid, None)
+        new_tag = ""
+    else:
+        data[guid] = tag_type
+        new_tag = tag_type
+
     try:
         with open(TAGGED_FILE, "w") as f:
             json.dump(data, f, indent=2)
     except Exception as ex:
-        _LOGGER.error("Failed saving tagged bucks to %s: %s", TAGGED_FILE, ex)
-    return new_state
+        _LOGGER.error("Failed saving tagged photos to %s: %s", TAGGED_FILE, ex)
+    return new_tag
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -50,13 +55,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_tag_buck(call: ServiceCall):
         guid = call.data.get("guid")
         if guid:
-            await hass.async_add_executor_job(_toggle_buck_tag, guid)
+            await hass.async_add_executor_job(_toggle_tag, guid, "buck")
+            await coordinator.async_request_refresh()
+
+    async def handle_tag_doe(call: ServiceCall):
+        guid = call.data.get("guid")
+        if guid:
+            await hass.async_add_executor_job(_toggle_tag, guid, "doe")
+            await coordinator.async_request_refresh()
+
+    async def handle_tag_person(call: ServiceCall):
+        guid = call.data.get("guid")
+        if guid:
+            await hass.async_add_executor_job(_toggle_tag, guid, "person")
+            await coordinator.async_request_refresh()
+
+    async def handle_tag_photo(call: ServiceCall):
+        guid = call.data.get("guid")
+        tag_type = call.data.get("type", "buck")
+        if guid:
+            await hass.async_add_executor_job(_toggle_tag, guid, tag_type)
             await coordinator.async_request_refresh()
 
     async def handle_sync_now(call: ServiceCall):
         await coordinator.async_request_refresh()
 
     hass.services.async_register(DOMAIN, "tag_buck", handle_tag_buck)
+    hass.services.async_register(DOMAIN, "tag_doe", handle_tag_doe)
+    hass.services.async_register(DOMAIN, "tag_person", handle_tag_person)
+    hass.services.async_register(DOMAIN, "tag_photo", handle_tag_photo)
     hass.services.async_register(DOMAIN, "toggle_buck", handle_tag_buck)
     hass.services.async_register(DOMAIN, "sync_now", handle_sync_now)
 
@@ -65,8 +92,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if entity_id == "input_text.stealthcam_tag_action":
             new_state = event.data.get("new_state")
             if new_state and new_state.state and new_state.state not in ["", "none", "idle", "unknown"]:
-                guid = new_state.state
-                await hass.async_add_executor_job(_toggle_buck_tag, guid)
+                parts = new_state.state.split(":", 1)
+                guid = parts[0].strip()
+                tag_type = parts[1].strip().lower() if len(parts) > 1 else "buck"
+                await hass.async_add_executor_job(_toggle_tag, guid, tag_type)
                 # Reset helper
                 await hass.services.async_call("input_text", "set_value", {"entity_id": "input_text.stealthcam_tag_action", "value": ""})
                 await coordinator.async_request_refresh()

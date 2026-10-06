@@ -190,6 +190,8 @@ class StealthCamClient:
             now_utc = datetime.datetime.now(datetime.timezone.utc)
             total_hits = len(dev_captures)
             buck_hits_count = 0
+            doe_hits_count = 0
+            person_hits_count = 0
             morning_hits = 0
             evening_hits = 0
             midday_hits = 0
@@ -197,6 +199,8 @@ class StealthCamClient:
 
             captures_24h_count = 0
             buck_hits_24h = 0
+            doe_hits_24h = 0
+            person_hits_24h = 0
             morning_24h = 0
             evening_24h = 0
             midday_24h = 0
@@ -220,9 +224,26 @@ class StealthCamClient:
 
             for c in dev_captures:
                 guid = c.get("imageGuid")
-                is_buck = bool(c.get("isBuckScored") or tagged_bucks.get(guid))
+                raw_tag = tagged_bucks.get(guid)
+                if raw_tag is True:
+                    tag = "buck"
+                elif isinstance(raw_tag, str):
+                    tag = raw_tag.lower()
+                elif c.get("isBuckScored"):
+                    tag = "buck"
+                else:
+                    tag = ""
+
+                is_buck = (tag == "buck")
+                is_doe = (tag == "doe")
+                is_person = (tag == "person")
+
                 if is_buck:
                     buck_hits_count += 1
+                elif is_doe:
+                    doe_hits_count += 1
+                elif is_person:
+                    person_hits_count += 1
 
                 cdt = c.get("createdDateTime") or c.get("uploadedTime")
                 dt_obj = None
@@ -269,6 +290,10 @@ class StealthCamClient:
                     captures_24h_count += 1
                     if is_buck:
                         buck_hits_24h += 1
+                    elif is_doe:
+                        doe_hits_24h += 1
+                    elif is_person:
+                        person_hits_24h += 1
 
             peak_window = "Variable"
             if total_hits > 0:
@@ -296,12 +321,26 @@ class StealthCamClient:
 
             recent_photos = []
             buck_photos = []
+            doe_photos = []
+            person_photos = []
             for c in dev_captures[:36]:
                 img_urls = c.get("imageUrls") or []
                 thumb_urls = c.get("thumbnailUrls") or []
                 cdt = c.get("createdDateTime") or c.get("uploadedTime")
                 guid = c.get("imageGuid")
-                is_buck = bool(c.get("isBuckScored") or tagged_bucks.get(guid))
+                raw_tag = tagged_bucks.get(guid)
+                if raw_tag is True:
+                    tag = "buck"
+                elif isinstance(raw_tag, str):
+                    tag = raw_tag.lower()
+                elif c.get("isBuckScored"):
+                    tag = "buck"
+                else:
+                    tag = ""
+                is_buck = (tag == "buck")
+                is_doe = (tag == "doe")
+                is_person = (tag == "person")
+
                 time_str = "Recent"
                 hour = 0
                 if cdt:
@@ -315,13 +354,20 @@ class StealthCamClient:
                     "image_url": img_urls[0] if img_urls else None,
                     "thumb_url": thumb_urls[0] if thumb_urls else (img_urls[0] if img_urls else None),
                     "time_str": time_str,
+                    "tag": tag,
                     "is_buck": is_buck,
+                    "is_doe": is_doe,
+                    "is_person": is_person,
                     "guid": guid,
                     "hour": hour,
                 }
                 recent_photos.append(p_data)
                 if is_buck:
                     buck_photos.append(p_data)
+                elif is_doe:
+                    doe_photos.append(p_data)
+                elif is_person:
+                    person_photos.append(p_data)
 
             rotate_angle = dev.get("rotateAngle")
             heading_cardinal = degrees_to_cardinal(rotate_angle) if rotate_angle is not None else "N/A"
@@ -357,10 +403,12 @@ class StealthCamClient:
                 "wind_speed": latest_img.get("wind"),
                 "wind_direction": latest_img.get("windDirection"),
                 "moon_phase": latest_img.get("moonPhase"),
-                # Hunting Statistical Breakdown - All-Time & 24-Hour
+                # Hunting & Stand Breakdown - All-Time & 24-Hour
                 "last_positive_hit": last_hit_dt,
                 "total_analyzed_captures": total_hits,
                 "buck_hits_count": buck_hits_count,
+                "doe_hits_count": doe_hits_count,
+                "person_hits_count": person_hits_count,
                 "morning_hits": morning_hits,
                 "evening_hits": evening_hits,
                 "night_hits": night_hits,
@@ -368,6 +416,8 @@ class StealthCamClient:
                 "peak_window": peak_window,
                 "captures_24h_count": captures_24h_count,
                 "buck_hits_24h": buck_hits_24h,
+                "doe_hits_24h": doe_hits_24h,
+                "person_hits_24h": person_hits_24h,
                 "morning_24h": morning_24h,
                 "evening_24h": evening_24h,
                 "night_24h": night_24h,
@@ -375,5 +425,7 @@ class StealthCamClient:
                 "peak_window_24h": peak_window_24h,
                 "recent_photos": recent_photos,
                 "buck_photos": buck_photos,
+                "doe_photos": doe_photos,
+                "person_photos": person_photos,
             }
         return result

@@ -17,7 +17,10 @@ cards:
         title: "🎯 Hunting Intel"
         content: |
           ### 🏆 Top Stand: **{{ states('sensor.stealthcam_hunt_recommendation') }}**
-          - 🦌 **Antlered Activity:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'buck_hits') | default(0) }} Verified Buck Hits
+          - 🦌 **Deer Activity:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'buck_hits') | default(0) }} Verified Bucks  •  {{ state_attr('sensor.stealthcam_property_movement', 'doe_hits') | default(0) }} Verified Does
+          {% if state_attr('sensor.stealthcam_property_movement', 'person_hits') | default(0) | int > 0 %}
+          - 🚨 **Human Activity Alert:** `{{ state_attr('sensor.stealthcam_property_movement', 'person_hits') }} person sightings recorded`
+          {% endif %}
           - ⏰ **Peak Movement:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'peak_window') | default('Dawn') }}
           - 🌔 **Moon Phase:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'moon_phase') | default('Waxing Crescent') }}  •  🌡️ **Temp:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'current_temp') | default(58) }}°F
 

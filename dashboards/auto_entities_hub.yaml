@@ -1,0 +1,86 @@
+# ==============================================================================
+# Stealth Cam Command - Auto-Entities Dynamic Overview Dashboard
+# Requires HACS Frontend Plugins:
+# 1. custom:auto-entities (https://github.com/thomasloven/lovelace-auto-entities)
+# 2. custom:button-card (https://github.com/custom-cards/button-card)
+# 3. custom:vertical-stack-in-card (https://github.com/ofekashern/vertical-stack-in-card)
+# ==============================================================================
+
+title: Trail Cams
+path: trail-cams
+icon: mdi:cctv
+cards:
+  # 1. Hunting Intelligence Summary Card
+  - type: custom:vertical-stack-in-card
+    cards:
+      - type: markdown
+        title: "🎯 Hunting Intel"
+        content: |
+          ### 🏆 Top Stand: **{{ states('sensor.stealthcam_hunt_recommendation') }}**
+          - 🦌 **Antlered Activity:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'buck_hits') | default(0) }} Verified Buck Hits
+          - ⏰ **Peak Movement:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'peak_window') | default('Dawn') }}
+          - 🌔 **Moon Phase:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'moon_phase') | default('Waxing Crescent') }}  •  🌡️ **Temp:** {{ state_attr('sensor.stealthcam_hunt_recommendation', 'current_temp') | default(58) }}°F
+
+          ---
+
+          ### 🧭 Wind & Scent Direction
+          {% set d = state_attr('sensor.stealthcam_stand_wind_matrix', 'stand_details') %}
+          {% if d %}
+          {% for stand, info in d.items() %}
+          - {{ info.get('status', '🟢 Favorable') }} **{{ stand }} ({{ info.get('heading', 'N/A') }})**
+          {% endfor %}
+          {% endif %}
+
+          ---
+
+          ### 📊 24-Hour Movement ({{ state_attr('sensor.stealthcam_property_movement', 'total_captures') | default(200) }} Captures)
+          - 🌅 **Dawn (5–9 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'morning_pct') | default(12) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'morning_hits') | default(0) }} hits)
+          - ☀️ **Midday (9 AM–4 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'midday_pct') | default(21) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'midday_hits') | default(0) }} hits)
+          - 🌇 **Evening (4–8 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'evening_pct') | default(14) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'evening_hits') | default(0) }} hits)
+          - 🌙 **Night (8 PM–5 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'night_pct') | default(53) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'night_hits') | default(0) }} hits)
+
+  # 2. Dynamic Auto-Discovery of All Trail Cameras
+  - type: custom:auto-entities
+    card:
+      type: grid
+      columns: 3
+      square: false
+    filter:
+      include:
+        - entity_id: "camera.stealth_cam_*_trail_cam"
+          options:
+            type: custom:button-card
+            entity: this.entity_id
+            show_entity_picture: true
+            show_name: true
+            show_label: true
+            name: "[[[ return entity.attributes.friendly_name || 'Trail Cam'; ]]]"
+            entity_picture: "[[[ return entity.attributes.image_url || entity.attributes.entity_picture; ]]]"
+            label: "[[[ return '🌡️ ' + (entity.attributes.temperature || '--') + '°F  •  🔋 ' + (entity.attributes.battery_level || '--') + '%'; ]]]"
+            tap_action:
+              action: more-info
+            styles:
+              card:
+                - border-radius: 12px
+                - overflow: hidden
+                - padding: 0
+                - border: none
+                - background: var(--card-background-color, #1c1c1e)
+                - cursor: pointer
+              entity_picture:
+                - width: 100%
+                - height: 200px
+                - object-fit: cover
+                - border-radius: 12px 12px 0 0
+                - background: "#111"
+              name:
+                - font-size: 15px
+                - font-weight: 700
+                - color: "#fff"
+                - padding: 8px 12px 0px 12px
+                - text-align: left
+              label:
+                - font-size: 12px
+                - color: "#a0a0a0"
+                - padding: 2px 12px 8px 12px
+                - text-align: left

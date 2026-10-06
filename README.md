@@ -84,25 +84,62 @@ service: stealthcam_command.sync_now
 
 ---
 
-## 📱 Lovelace Dashboard Example
+## 📱 Drop-in Lovelace Dashboards & Auto-Discovery
+
+Pre-built dashboard templates are provided in the [`dashboards/`](dashboards/) directory:
+
+### 🌟 Zero-Config Auto-Discovery Hub ([`dashboards/auto_entities_hub.yaml`](dashboards/auto_entities_hub.yaml))
+Automatically discovers and displays all cameras on your account in a responsive grid with weather, battery, and 24-hour movement intelligence.
+
+#### Required HACS Frontend Cards:
+- [`auto-entities`](https://github.com/thomasloven/lovelace-auto-entities)
+- [`button-card`](https://github.com/custom-cards/button-card)
+- [`vertical-stack-in-card`](https://github.com/ofekashern/vertical-stack-in-card)
 
 ```yaml
-type: custom:vertical-stack-in-card
-cards:
-  - type: custom:button-card
-    entity: camera.stealth_cam_north_ridge_north_ridge_trail_cam
-    show_entity_picture: true
-    show_name: true
-    show_label: true
-    name: North Ridge Stand
-    tap_action:
-      action: more-info
-    styles:
-      entity_picture:
-        - width: 100%
-        - height: 220px
-        - object-fit: cover
+type: custom:auto-entities
+card:
+  type: grid
+  columns: 3
+  square: false
+filter:
+  include:
+    - entity_id: "camera.stealth_cam_*_trail_cam"
+      options:
+        type: custom:button-card
+        entity: this.entity_id
+        show_entity_picture: true
+        show_name: true
+        show_label: true
+        name: "[[[ return entity.attributes.friendly_name; ]]]"
+        entity_picture: "[[[ return entity.attributes.image_url || entity.attributes.entity_picture; ]]]"
+        label: "[[[ return '🌡️ ' + (entity.attributes.temperature || '--') + '°F  •  🔋 ' + (entity.attributes.battery_level || '--') + '%'; ]]]"
+        tap_action:
+          action: more-info
 ```
+
+### 📸 Stand Deep-Dive & 36-Photo Reel ([`dashboards/camera_subview_template.yaml`](dashboards/camera_subview_template.yaml))
+Provides individual stand telemetry, 24-hr time-of-day movement distribution, verified buck hit badges, and auto-populates all 36 capture entities.
+
+---
+
+## 🎨 Customizing Camera Icons & Map Pin Avatars
+
+You can customize camera icons and map pins directly in Home Assistant without touching YAML:
+
+### Option A: Home Assistant UI
+1. Go to **Settings ➔ Devices & Services ➔ Entities**.
+2. Click on your camera's location entity (e.g. `North Ridge Camera Location`).
+3. Click the ⚙️ icon to set any custom icon (e.g. `mdi:tree`, `mdi:deer`, `mdi:target`).
+
+### Option B: Custom Face Avatars on Map Pins (`customize.yaml`)
+To show custom circular character photos or stand badges on Home Assistant maps:
+1. Place your PNG icons in `/config/www/avatars/`.
+2. Add to `/config/customize.yaml`:
+   ```yaml
+   sensor.stealth_cam_north_ridge_north_ridge_stand_location:
+     entity_picture: /local/avatars/stand_1.png
+   ```
 
 ---
 

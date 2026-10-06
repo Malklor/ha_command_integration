@@ -4,6 +4,8 @@
 config.json
 tokens.json
 credentials.json
+avatars.json
+tagged_bucks.json
 
 # Python
 __pycache__/
@@ -34,12 +36,17 @@ wheels/
 www/
 trail_cams/
 *.jpg
-*.png
 *.log
+*.zip
+
+# Allow specific PNG branding icons
+!icon.png
+!icon@2x.png
+!logo.png
+!logo@2x.png
 
 # IDE & OS
 .idea/
 .vscode/
 *.swp
 .DS_Store
-*.zip

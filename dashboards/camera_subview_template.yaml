@@ -1,0 +1,87 @@
+# ==============================================================================
+# Stealth Cam Command - Camera Deep-Dive & 36-Photo Subview Template
+# Replace <camera_slug> with your camera slug (e.g. north_ridge, food_plot)
+# ==============================================================================
+
+title: Camera Deep Dive
+path: stand-example
+subview: true
+cards:
+  # 1. Navigation Header
+  - type: markdown
+    content: |
+      ## 🦌 Stand Intelligence & Photo Reel
+      **Position:** {{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_stand_location') }}
+      
+      [⬅️ Return to Trail Cams Hub](/lovelace/trail-cams)
+
+  # 2. Activity & Movement Trends
+  - type: markdown
+    title: "📊 Activity & Trends"
+    content: |
+      ### 🦌 Buck Activity
+      - 🦌 **Verified Bucks:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_positive_buck_hits') }} hits` *(Highlighted in Gold below)*
+      - 🎯 **Last Hit:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit') }}`
+      - ⏰ **Peak Window:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_peak_movement_window') }}`
+
+      ---
+
+      ### ⏰ 24-Hour Movement ({{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'total_analyzed_captures') | default(0) }} Captures)
+      - 🌅 **Dawn (5–9 AM):** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'morning_hits') | default(0) }} hits`
+      - ☀️ **Midday (9 AM–4 PM):** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'midday_hits') | default(0) }} hits`
+      - 🌇 **Evening (4–8 PM):** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'evening_hits') | default(0) }} hits`
+      - 🌙 **Night (8 PM–5 AM):** `{{ state_attr('sensor.stealth_cam_<camera_slug>_<camera_slug>_last_animal_hit', 'night_hits') | default(0) }} hits`
+
+      ---
+
+      ### 🌤️ Weather & Status
+      - 🌡️ **Temp:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_field_temperature') }}°F`  •  **Baro:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_barometric_pressure') }} inHg`
+      - 💨 **Wind:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_field_wind') }}`  •  **Moon:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_moon_phase') }}`
+      - 🔋 **Battery:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_battery') }}%`  •  **Signal:** `{{ states('sensor.stealth_cam_<camera_slug>_<camera_slug>_cellular_signal') }}`
+
+  # 3. Dynamic Auto-Entities Photo Gallery (Discovers all 36 capture camera entities)
+  - type: custom:auto-entities
+    card:
+      type: grid
+      columns: 3
+      square: false
+    filter:
+      include:
+        - entity_id: "camera.stealth_cam_<camera_slug>_<camera_slug>_photo_*"
+          options:
+            type: custom:button-card
+            entity: this.entity_id
+            show_entity_picture: true
+            show_name: true
+            show_label: true
+            name: "[[[ return entity.attributes.time_str || 'Recent Capture'; ]]]"
+            entity_picture: "[[[ return entity.attributes.thumbnail_url || entity.attributes.image_url; ]]]"
+            label: "[[[ return entity.attributes.is_buck ? '✨ 🦌 VERIFIED BUCK' : '🔍 Tap for Photo'; ]]]"
+            tap_action:
+              action: more-info
+            styles:
+              card:
+                - border-radius: 10px
+                - padding: 0
+                - overflow: hidden
+                - border: "[[[ return entity.attributes.is_buck ? '2.5px solid #f39c12' : '1.5px solid rgba(82, 148, 226, 0.35)'; ]]]"
+                - box-shadow: "[[[ return entity.attributes.is_buck ? '0 0 14px rgba(243, 156, 18, 0.55)' : 'none'; ]]]"
+                - background: var(--card-background-color, #1c1c1e)
+                - cursor: pointer
+              entity_picture:
+                - width: 100%
+                - height: 160px
+                - object-fit: cover
+                - background: "#000"
+              name:
+                - font-size: 13px
+                - font-weight: 700
+                - color: "#fff"
+                - padding: 6px 8px 0px 8px
+                - text-align: left
+              label:
+                - font-size: 11px
+                - font-weight: 700
+                - color: "[[[ return entity.attributes.is_buck ? '#f39c12' : '#70a5eb'; ]]]"
+                - padding: 2px 8px 6px 8px
+                - text-align: left

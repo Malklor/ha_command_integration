@@ -1,3 +1,15 @@
+tag_buck:
+  name: Tag / Untag Buck
+  description: Toggle or set the verified antlered buck state for a trail camera photo capture.
+  fields:
+    guid:
+      name: Image GUID
+      description: The unique GUID identifier of the capture.
+      required: true
+      example: "01a1109a-f850-73a7-9fb2-8b1be1024262"
+      selector:
+        text:
+
 toggle_buck:
   name: Toggle Buck Tag
   description: Toggle or set the verified antlered buck state for a trail camera photo capture.

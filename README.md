@@ -18,7 +18,7 @@ Provides real-time hardware telemetry, cellular connectivity monitoring, field w
 - 🌤️ **Field Environmental Sensors**: Ambient field temperature (`°F`), barometric pressure (`inHg`), pressure trend, wind speed & compass direction, and moon phase.
 - 🧭 **Stand Scent & Wind Direction Matrix**: Evaluates current field wind against each camera stand's physical heading to compute favorable, marginal, or unfavorable hunting conditions.
 - 🦌 **1-Tap Buck Tagging & Score Tracking**: Tag captures as verified antlered bucks with real-time gold badge highlights and stand analytics.
-- 📊 **24-Hour Time-of-Day Movement Distribution**: Classifies property-wide and stand-specific deer movement into Dawn Transitions (5-8 AM), Daylight Movement (9 AM-4 PM), Evening Feeding (4-8 PM), and Night Roaming (8 PM-5 AM).
+- ⏱️ **Dual 24-Hour & All-Time Movement Distribution**: Classifies both rolling 24-hour activity and historical trends across Dawn Transitions (5–9 AM), Daylight Movement (9 AM–4 PM), Evening Feeding (4–8 PM), and Night Roaming (8 PM–5 AM).
 - 🗺️ **GPS Mapping & Stand Tracking**: Tracks camera positions on Home Assistant maps with custom stand character pins and compass headings.
 
 ---

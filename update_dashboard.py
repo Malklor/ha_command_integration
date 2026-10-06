@@ -171,7 +171,7 @@ def build_trail_cams_view():
         ]
     }
 
-    # Column 3: GPS Map + Marge + Bart + Collapsible Battery Health
+    # Column 3: GPS Map + Marge + Bart
     col3 = {
         "type": "vertical-stack",
         "cards": [
@@ -186,27 +186,6 @@ def build_trail_cams_view():
             },
             make_cam_card(CAMERAS[4]),  # Marge
             make_cam_card(CAMERAS[5]),  # Bart
-            {
-                "type": "entities",
-                "title": "🔋 Cellular & Battery Health",
-                "entities": [
-                    {
-                        "type": "custom:fold-entity-row",
-                        "head": {
-                            "type": "section",
-                            "label": "All Camera Battery Levels"
-                        },
-                        "entities": [
-                            {"entity": "sensor.stealthcam_homer_battery", "name": "Homer Battery"},
-                            {"entity": "sensor.stealthcam_maggie_battery", "name": "Maggie Battery"},
-                            {"entity": "sensor.stealthcam_santas_helper_battery", "name": "Santa's Helper Battery"},
-                            {"entity": "sensor.stealthcam_lisa_battery", "name": "Lisa Battery"},
-                            {"entity": "sensor.stealthcam_marge_battery", "name": "Marge Battery"},
-                            {"entity": "sensor.stealthcam_bart_battery", "name": "Bart Battery"}
-                        ]
-                    }
-                ]
-            }
         ]
     }
 

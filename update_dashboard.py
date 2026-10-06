@@ -51,8 +51,7 @@ def make_cam_card(cam):
                     f"]]]"
                 ),
                 "tap_action": {
-                    "action": "navigate",
-                    "navigation_path": f"/lovelace-basement/stand-{slug}"
+                    "action": "more-info"
                 },
                 "styles": {
                     "card": [
@@ -340,10 +339,9 @@ def build_stand_subview(cam):
                         "show_label": True,
                         "entity_picture": thumb_url,
                         "name": p.get("time_str", "Recent"),
-                        "label": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '✨ 🦌 VERIFIED BUCK HIT' : '📷 Tap for Fullscreen Photo'; ]]]",
+                        "label": f"[[[ var photos = entity.attributes.recent_photos || []; var p = photos.find(x => x.guid === '{guid}'); return (p && p.is_buck) ? '✨ 🦌 VERIFIED BUCK HIT' : '📷 Tap for Fullscreen Popup'; ]]]",
                         "tap_action": {
-                            "action": "url",
-                            "url_path": image_url
+                            "action": "more-info"
                         },
                         "styles": {
                             "card": [

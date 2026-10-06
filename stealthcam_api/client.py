@@ -120,7 +120,7 @@ class StealthCamClient:
     def get_latest_images(self) -> List[Dict[str, Any]]:
         """Retrieve latest captured photos for all cameras."""
         self.ensure_auth()
-        url = f"{self.base_url}/api/v4/file-manager/images/latest"
+        url = f"{self.base_url}/api/v3/file-manager/images/latest"
         try:
             res = self.session.get(url, timeout=self.timeout)
             if res.status_code != 200:

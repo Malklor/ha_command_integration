@@ -142,26 +142,7 @@ def build_dynamic_photo_card(slug: str, idx: int):
     cam_entity = f"camera.stealth_cam_{slug}_{slug}_trail_cam"
     buck_entity = f"sensor.stealth_cam_{slug}_{slug}_positive_buck_hits"
 
-    filter_js = f"""
-      var e = states['{photo_entity}'];
-      if (!e || !e.attributes || (!e.attributes.image_url && !e.attributes.thumbnail_url)) {{
-        return 'none';
-      }}
-      var f = states['input_select.stealthcam_photo_filter'] ? states['input_select.stealthcam_photo_filter'].state : 'All';
-      var tag = e.attributes.tag || '';
-      var isBuck = e.attributes.is_buck;
-      var isDoe = e.attributes.is_doe;
-      var isPerson = e.attributes.is_person;
-      var hour = e.attributes.hour !== undefined ? e.attributes.hour : 0;
-      if (f === 'Bucks' && !(isBuck || tag === 'buck')) return 'none';
-      if (f === 'Does' && !(isDoe || tag === 'doe')) return 'none';
-      if (f === 'Person' && !(isPerson || tag === 'person')) return 'none';
-      if (f === 'Dawn' && !(hour >= 5 && hour < 9)) return 'none';
-      if (f === 'Midday' && !(hour >= 9 && hour < 17)) return 'none';
-      if (f === 'Evening' && !(hour >= 17 && hour < 21)) return 'none';
-      if (f === 'Night' && !(hour >= 21 || hour < 5)) return 'none';
-      return 'block';
-    """
+    filter_js = f"var e = states['{photo_entity}']; if (!e || !e.attributes || (!e.attributes.image_url && !e.attributes.thumbnail_url)) return 'none'; var f = states['input_select.stealthcam_photo_filter'] ? states['input_select.stealthcam_photo_filter'].state : 'All'; var t = e.attributes.tag || ''; var b = e.attributes.is_buck; var d = e.attributes.is_doe; var p = e.attributes.is_person; var h = e.attributes.hour || 0; if (f === 'Bucks' && !(b || t === 'buck')) return 'none'; if (f === 'Does' && !(d || t === 'doe')) return 'none'; if (f === 'Person' && !(p || t === 'person')) return 'none'; if (f === 'Dawn' && !(h >= 5 && h < 9)) return 'none'; if (f === 'Midday' && !(h >= 9 && h < 17)) return 'none'; if (f === 'Evening' && !(h >= 17 && h < 21)) return 'none'; if (f === 'Night' && !(h >= 21 || h < 5)) return 'none'; return 'block';"
 
     return {
         "type": "custom:vertical-stack-in-card",
@@ -194,23 +175,12 @@ def build_dynamic_photo_card(slug: str, idx: int):
             {
                 "type": "custom:button-card",
                 "entity": photo_entity,
-                "triggers_update": [
-                    photo_entity,
-                    cam_entity,
-                    buck_entity,
-                    "input_select.stealthcam_photo_filter",
-                ],
+                "triggers_update": [photo_entity, cam_entity, buck_entity, "input_select.stealthcam_photo_filter"],
                 "show_entity_picture": True,
                 "show_name": True,
                 "show_label": True,
                 "entity_picture": f"[[[ return states['{photo_entity}'] ? (states['{photo_entity}'].attributes.entity_picture || states['{photo_entity}'].attributes.thumbnail_url || states['{photo_entity}'].attributes.image_url) : ''; ]]]",
-                "name": f"""[[[
-                  var e = states['{photo_entity}'];
-                  if (!e || !e.attributes) return 'Photo {idx + 1}';
-                  var t = e.attributes.time_str || e.attributes.friendly_name || 'Photo {idx + 1}';
-                  var hd = e.attributes.is_hd ? ' 💎' : '';
-                  return t + hd;
-                ]]]""",
+                "name": f"[[[ var e = states['{photo_entity}']; if (!e || !e.attributes) return 'Photo {idx + 1}'; var t = e.attributes.time_str || e.attributes.friendly_name || 'Photo {idx + 1}'; return t + (e.attributes.is_hd ? ' 💎' : ''); ]]]",
                 "label": f"""[[[
                   var e = states['{photo_entity}'];
                   if (!e || !e.attributes) return '';
@@ -223,6 +193,13 @@ def build_dynamic_photo_card(slug: str, idx: int):
                   return (e.attributes.is_hd ? '💎 HD Photo • Tap to View' : '🔍 Tap for Photo');
                 ]]]""",
                 "tap_action": {"action": "more-info"},
+                "hold_action": {
+                    "action": "call-service",
+                    "service": "stealthcam_command.request_hd",
+                    "service_data": {
+                        "guid": f"[[[ var e = states['{photo_entity}']; return (e && e.attributes.guid) ? e.attributes.guid : ''; ]]]"
+                    },
+                },
                 "styles": {
                     "card": [
                         {"border-radius": "10px 10px 0 0"},
@@ -268,31 +245,18 @@ def build_dynamic_photo_card(slug: str, idx: int):
             },
             {
                 "type": "grid",
-                "columns": 3,
+                "columns": 4,
                 "square": False,
                 "cards": [
-                    # Buck Icon Button
+                    # 1. Buck Tag
                     {
                         "type": "custom:button-card",
                         "entity": photo_entity,
-                        "triggers_update": [
-                            photo_entity,
-                            cam_entity,
-                            buck_entity,
-                            "input_select.stealthcam_photo_filter",
-                        ],
-                        "tooltip": "Tag as Verified Buck (Gold Antlers)",
-                        "show_name": False,
+                        "triggers_update": [photo_entity, "input_select.stealthcam_photo_filter"],
+                        "name": "🦌",
+                        "tooltip": "Tag as Verified Buck (Gold)",
+                        "show_name": True,
                         "show_icon": False,
-                        "custom_fields": {
-                            "btn_icon": f"""[[[
-                              var e = states['{photo_entity}'];
-                              var tag = (e && e.attributes.tag) ? e.attributes.tag : '';
-                              var isBuck = (e && e.attributes.is_buck);
-                              var col = (isBuck || tag === 'buck') ? '#f39c12' : 'rgba(255, 255, 255, 0.7)';
-                              return `<svg viewBox="35 15 440 240" style="width: 22px; height: 18px; fill: ${{col}}; display: block; margin: auto;"><path d="M155.2 25.2c-58.44 28-81.24 63.4-77.16 96.6 1.77 14.5 8.78 28.8 20.67 42.4-19.59-12.8-30.66-26.7-36.15-40.5-14.71-37 11.66-71.4 11.66-71.4L60.96 42.2s-31.94 42.2-13.88 87.7c6.5 16.3 19.6 33.4 43.74 48.8.49.3.34.2.49.3 4.86 3.1 10.19 6.2 15.99 9.1 45.6 27.1 64.4 48.4 64.4 48.4l5.7 6.4 26.7-24.9-4.8-6s-19-24.3-19.2-57.7l-16.7-.2-.9 35.7c-40.3-19.4-64.71-43.9-67.92-70C91.14 91.7 113 63.9 162.4 40.2zm201.6 0-7.2 15c49.4 23.7 71.3 51.5 67.8 79.6-3.2 26.1-27.6 50.6-67.9 70l-.9-35.7-16.7.2c-.2 33.4-19.2 57.7-19.2 57.7l-4.8 6 26.7 24.9 5.7-6.4s18.8-21.3 64.4-48.4c5.9-3 11.6-6.3 16.5-9.4 24.1-15.4 37.2-32.5 43.7-48.8C483 84.4 451 42.2 451 42.2l-13.2 10.1s26.4 34.4 11.6 71.4c-5.5 13.8-16.5 27.7-36.1 40.5 11.9-13.6 18.9-27.9 20.7-42.4 4-33.2-18.8-68.6-77.2-96.6z"/></svg>`;
-                            ]]]"""
-                        },
                         "tap_action": {
                             "action": "call-service",
                             "service": "stealthcam_command.tag_buck",
@@ -301,44 +265,30 @@ def build_dynamic_photo_card(slug: str, idx: int):
                             },
                         },
                         "styles": {
-                            "grid": [{"grid-template-areas": "'btn_icon'"}],
                             "card": [
                                 {"border-radius": "0 0 0 10px"},
                                 {"padding": "6px 0"},
                                 {"height": "34px"},
                                 {
-                                    "background": f"""[[[
-                                      var e = states['{photo_entity}'];
-                                      var tag = (e && e.attributes.tag) ? e.attributes.tag : '';
-                                      var isBuck = (e && e.attributes.is_buck);
-                                      return (isBuck || tag === 'buck') ? 'rgba(243, 156, 18, 0.35)' : 'rgba(255, 255, 255, 0.05)';
-                                    ]]]"""
+                                    "background": f"[[[ var e = states['{photo_entity}']; var tag = (e && e.attributes.tag) ? e.attributes.tag : ''; return (e && (e.attributes.is_buck || tag === 'buck')) ? 'rgba(243, 156, 18, 0.35)' : 'rgba(255, 255, 255, 0.05)'; ]]]"
                                 },
+                                {
+                                    "border": f"[[[ var e = states['{photo_entity}']; var tag = (e && e.attributes.tag) ? e.attributes.tag : ''; return (e && (e.attributes.is_buck || tag === 'buck')) ? '1.5px solid #f39c12' : '1px solid rgba(255, 255, 255, 0.1)'; ]]]"
+                                },
+                                {"border-top": "none"},
                                 {"cursor": "pointer"},
                                 {"display": f"[[[ {filter_js} ]]]"},
                             ],
-                            "custom_fields": {
-                                "btn_icon": [
-                                    {"text-align": "center"},
-                                    {"display": "flex"},
-                                    {"justify-content": "center"},
-                                    {"align-items": "center"},
-                                ]
-                            },
+                            "name": [{"font-size": "15px"}, {"line-height": "1"}, {"text-align": "center"}],
                         },
                     },
-                    # Doe Icon Button
+                    # 2. Doe Tag
                     {
                         "type": "custom:button-card",
                         "entity": photo_entity,
-                        "triggers_update": [
-                            photo_entity,
-                            cam_entity,
-                            buck_entity,
-                            "input_select.stealthcam_photo_filter",
-                        ],
-                        "name": "🦌",
-                        "tooltip": "Tag as Verified Doe (Blue Deer)",
+                        "triggers_update": [photo_entity, "input_select.stealthcam_photo_filter"],
+                        "name": "🐾",
+                        "tooltip": "Tag as Verified Doe (Blue)",
                         "show_name": True,
                         "show_icon": False,
                         "tap_action": {
@@ -354,44 +304,25 @@ def build_dynamic_photo_card(slug: str, idx: int):
                                 {"padding": "6px 0"},
                                 {"height": "34px"},
                                 {
-                                    "background": f"""[[[
-                                      var e = states['{photo_entity}'];
-                                      var tag = (e && e.attributes.tag) ? e.attributes.tag : '';
-                                      var isDoe = (e && e.attributes.is_doe);
-                                      return (isDoe || tag === 'doe') ? 'rgba(52, 152, 219, 0.35)' : 'rgba(255, 255, 255, 0.05)';
-                                    ]]]"""
+                                    "background": f"[[[ var e = states['{photo_entity}']; var tag = (e && e.attributes.tag) ? e.attributes.tag : ''; return (e && (e.attributes.is_doe || tag === 'doe')) ? 'rgba(52, 152, 219, 0.35)' : 'rgba(255, 255, 255, 0.05)'; ]]]"
                                 },
                                 {
-                                    "border": f"""[[[
-                                      var e = states['{photo_entity}'];
-                                      var tag = (e && e.attributes.tag) ? e.attributes.tag : '';
-                                      var isDoe = (e && e.attributes.is_doe);
-                                      return (isDoe || tag === 'doe') ? '1.5px solid #3498db' : '1px solid rgba(255, 255, 255, 0.1)';
-                                    ]]]"""
+                                    "border": f"[[[ var e = states['{photo_entity}']; var tag = (e && e.attributes.tag) ? e.attributes.tag : ''; return (e && (e.attributes.is_doe || tag === 'doe')) ? '1.5px solid #3498db' : '1px solid rgba(255, 255, 255, 0.1)'; ]]]"
                                 },
                                 {"border-top": "none"},
                                 {"cursor": "pointer"},
                                 {"display": f"[[[ {filter_js} ]]]"},
                             ],
-                            "name": [
-                                {"font-size": "16px"},
-                                {"line-height": "1"},
-                                {"text-align": "center"},
-                            ],
+                            "name": [{"font-size": "15px"}, {"line-height": "1"}, {"text-align": "center"}],
                         },
                     },
-                    # Person Icon Button
+                    # 3. Person Tag
                     {
                         "type": "custom:button-card",
                         "entity": photo_entity,
-                        "triggers_update": [
-                            photo_entity,
-                            cam_entity,
-                            buck_entity,
-                            "input_select.stealthcam_photo_filter",
-                        ],
+                        "triggers_update": [photo_entity, "input_select.stealthcam_photo_filter"],
                         "name": "👤",
-                        "tooltip": "👤 Flag Human Activity (Red Alert)",
+                        "tooltip": "Flag Human Activity (Red Alert)",
                         "show_name": True,
                         "show_icon": False,
                         "tap_action": {
@@ -403,34 +334,54 @@ def build_dynamic_photo_card(slug: str, idx: int):
                         },
                         "styles": {
                             "card": [
-                                {"border-radius": "0 0 10px 0"},
+                                {"border-radius": "0"},
                                 {"padding": "6px 0"},
                                 {"height": "34px"},
                                 {
-                                    "background": f"""[[[
-                                      var e = states['{photo_entity}'];
-                                      var tag = (e && e.attributes.tag) ? e.attributes.tag : '';
-                                      var isPerson = (e && e.attributes.is_person);
-                                      return (isPerson || tag === 'person') ? 'rgba(231, 76, 60, 0.35)' : 'rgba(255, 255, 255, 0.05)';
-                                    ]]]"""
+                                    "background": f"[[[ var e = states['{photo_entity}']; var tag = (e && e.attributes.tag) ? e.attributes.tag : ''; return (e && (e.attributes.is_person || tag === 'person')) ? 'rgba(231, 76, 60, 0.35)' : 'rgba(255, 255, 255, 0.05)'; ]]]"
                                 },
                                 {
-                                    "border": f"""[[[
-                                      var e = states['{photo_entity}'];
-                                      var tag = (e && e.attributes.tag) ? e.attributes.tag : '';
-                                      var isPerson = (e && e.attributes.is_person);
-                                      return (isPerson || tag === 'person') ? '1.5px solid #e74c3c' : '1px solid rgba(255, 255, 255, 0.1)';
-                                    ]]]"""
+                                    "border": f"[[[ var e = states['{photo_entity}']; var tag = (e && e.attributes.tag) ? e.attributes.tag : ''; return (e && (e.attributes.is_person || tag === 'person')) ? '1.5px solid #e74c3c' : '1px solid rgba(255, 255, 255, 0.1)'; ]]]"
                                 },
                                 {"border-top": "none"},
                                 {"cursor": "pointer"},
                                 {"display": f"[[[ {filter_js} ]]]"},
                             ],
-                            "name": [
-                                {"font-size": "16px"},
-                                {"line-height": "1"},
-                                {"text-align": "center"},
+                            "name": [{"font-size": "15px"}, {"line-height": "1"}, {"text-align": "center"}],
+                        },
+                    },
+                    # 4. Request HD
+                    {
+                        "type": "custom:button-card",
+                        "entity": photo_entity,
+                        "triggers_update": [photo_entity, "input_select.stealthcam_photo_filter"],
+                        "name": "💎",
+                        "tooltip": "💎 Request Full-Res HD Photo from Camera",
+                        "show_name": True,
+                        "show_icon": False,
+                        "tap_action": {
+                            "action": "call-service",
+                            "service": "stealthcam_command.request_hd",
+                            "service_data": {
+                                "guid": f"[[[ var e = states['{photo_entity}']; return (e && e.attributes.guid) ? e.attributes.guid : ''; ]]]"
+                            },
+                        },
+                        "styles": {
+                            "card": [
+                                {"border-radius": "0 0 10px 0"},
+                                {"padding": "6px 0"},
+                                {"height": "34px"},
+                                {
+                                    "background": f"[[[ var e = states['{photo_entity}']; return (e && e.attributes && e.attributes.is_hd) ? 'rgba(0, 210, 255, 0.35)' : 'rgba(255, 255, 255, 0.05)'; ]]]"
+                                },
+                                {
+                                    "border": f"[[[ var e = states['{photo_entity}']; return (e && e.attributes && e.attributes.is_hd) ? '1.5px solid #00d2ff' : '1px solid rgba(255, 255, 255, 0.1)'; ]]]"
+                                },
+                                {"border-top": "none"},
+                                {"cursor": "pointer"},
+                                {"display": f"[[[ {filter_js} ]]]"},
                             ],
+                            "name": [{"font-size": "15px"}, {"line-height": "1"}, {"text-align": "center"}],
                         },
                     },
                 ],

@@ -27,8 +27,92 @@ def degrees_to_cardinal(deg: Optional[float]) -> str:
     if deg is None:
         return "N/A"
     val = int((deg / 22.5) + 0.5)
-    dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+    dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NW"]
     return dirs[(val % 16)]
+
+
+def extract_species_tag(c: Dict[str, Any], active_tags: Dict[str, Any]) -> str:
+    """Extract and normalize species tag (buck, doe, person) from image capture data."""
+    guid = c.get("imageGuid")
+    if guid and guid in active_tags:
+        raw_tag = active_tags[guid]
+        if raw_tag is True:
+            return "buck"
+        if isinstance(raw_tag, str) and raw_tag:
+            return raw_tag.lower()
+
+    # Direct booleans
+    if c.get("isBuckScored") or c.get("isBuck") or c.get("isWhitetailBuck") or c.get("whitetailBuck"):
+        return "buck"
+    if c.get("isDoeScored") or c.get("isDoe") or c.get("isWhitetailDoe") or c.get("whitetailDoe"):
+        return "doe"
+    if c.get("isPerson") or c.get("isHuman") or c.get("humanDetected") or c.get("isPersonDetected"):
+        return "person"
+
+    # String fields (e.g. "Whitetail Doe", "Whitetail Buck", "Human", "Doe", "Buck")
+    string_candidates = [
+        c.get("species"),
+        c.get("speciesName"),
+        c.get("speciesType"),
+        c.get("animal"),
+        c.get("animalType"),
+        c.get("detectionType"),
+        c.get("label"),
+        c.get("tag"),
+        c.get("userTag"),
+        c.get("aiTag"),
+    ]
+    for cand in string_candidates:
+        if isinstance(cand, str) and cand:
+            low = cand.lower()
+            if "buck" in low or "antler" in low:
+                return "buck"
+            if "doe" in low or "fawn" in low:
+                return "doe"
+            if "human" in low or "person" in low or "people" in low:
+                return "person"
+            if "deer" in low:
+                return "doe"
+
+    # List or collection fields (tags, userTags, aiTags, labels, filterTags, imageTags)
+    list_candidates = [
+        c.get("tags"),
+        c.get("userTags"),
+        c.get("aiTags"),
+        c.get("labels"),
+        c.get("filterTags"),
+        c.get("imageTags"),
+        c.get("classifications"),
+        c.get("objects"),
+        c.get("objectDetection"),
+    ]
+    for lst in list_candidates:
+        if isinstance(lst, list):
+            for item in lst:
+                text = ""
+                if isinstance(item, str):
+                    text = item.lower()
+                elif isinstance(item, dict):
+                    text = (
+                        item.get("name")
+                        or item.get("tagName")
+                        or item.get("speciesName")
+                        or item.get("label")
+                        or item.get("tag")
+                        or item.get("species")
+                        or ""
+                    ).lower()
+                if text:
+                    if "buck" in text or "antler" in text:
+                        return "buck"
+                    if "doe" in text or "fawn" in text:
+                        return "doe"
+                    if "human" in text or "person" in text or "people" in text:
+                        return "person"
+                    if "deer" in text:
+                        return "doe"
+
+    return ""
 
 
 class StealthCamClient:
@@ -224,21 +308,7 @@ class StealthCamClient:
                         pass
 
             for c in dev_captures:
-                guid = c.get("imageGuid")
-                raw_tag = active_tags.get(guid)
-                if raw_tag is True:
-                    tag = "buck"
-                elif isinstance(raw_tag, str):
-                    tag = raw_tag.lower()
-                elif c.get("isBuckScored"):
-                    tag = "buck"
-                elif c.get("isDoeScored") or c.get("isDoe"):
-                    tag = "doe"
-                elif c.get("isPerson") or c.get("isHuman"):
-                    tag = "person"
-                else:
-                    tag = ""
-
+                tag = extract_species_tag(c, active_tags)
                 is_buck = (tag == "buck")
                 is_doe = (tag == "doe")
                 is_person = (tag == "person")
@@ -333,19 +403,7 @@ class StealthCamClient:
                 thumb_urls = c.get("thumbnailUrls") or []
                 cdt = c.get("createdDateTime") or c.get("uploadedTime")
                 guid = c.get("imageGuid")
-                raw_tag = active_tags.get(guid)
-                if raw_tag is True:
-                    tag = "buck"
-                elif isinstance(raw_tag, str):
-                    tag = raw_tag.lower()
-                elif c.get("isBuckScored") or c.get("isBuck"):
-                    tag = "buck"
-                elif c.get("isDoeScored") or c.get("isDoe"):
-                    tag = "doe"
-                elif c.get("isPerson") or c.get("isHuman") or c.get("humanDetected"):
-                    tag = "person"
-                else:
-                    tag = ""
+                tag = extract_species_tag(c, active_tags)
                 is_buck = (tag == "buck")
                 is_doe = (tag == "doe")
                 is_person = (tag == "person")

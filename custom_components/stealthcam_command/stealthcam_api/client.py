@@ -144,7 +144,7 @@ class StealthCamClient:
         except requests.RequestException as ex:
             raise StealthCamAPIError(f"Network error fetching latest images: {ex}") from ex
 
-    def get_recent_captures(self, limit: int = 200) -> List[Dict[str, Any]]:
+    def get_recent_captures(self, limit: int = 600) -> List[Dict[str, Any]]:
         """Fetch historical batch of photo captures across all cameras for statistical modeling."""
         self.ensure_auth()
         url = f"{self.base_url}/api/v6/file-manager/images"
@@ -165,7 +165,7 @@ class StealthCamClient:
         pdis = [d["physicalDeviceIdentifier"] for d in devices if "physicalDeviceIdentifier" in d]
         statuses = self.get_device_statuses(pdis)
         latest_images = self.get_latest_images()
-        recent_captures = self.get_recent_captures(limit=200)
+        recent_captures = self.get_recent_captures(limit=600)
 
         status_map = {s["physicalDeviceIdentifier"]: s for s in statuses}
         image_map = {img["deviceName"]: img for img in latest_images if "deviceName" in img}

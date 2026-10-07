@@ -1,4 +1,5 @@
 """Camera platform for Stealth Cam Command integration."""
+from collections import OrderedDict
 import logging
 from typing import Any, Dict, Optional
 import requests
@@ -15,6 +16,33 @@ from .const import DOMAIN
 from .coordinator import StealthCamDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# Global in-memory LRU image cache for ultra-fast local proxy serving
+MAX_CACHE_SIZE = 300
+_IMAGE_CACHE: "OrderedDict[str, bytes]" = OrderedDict()
+
+
+def fetch_and_cache_image(
+    url: Optional[str], guid: Optional[str] = None, timeout: int = 10
+) -> Optional[bytes]:
+    """Fetch image bytes with in-memory caching."""
+    if not url:
+        return None
+    cache_key = guid or url
+    if cache_key in _IMAGE_CACHE:
+        _IMAGE_CACHE.move_to_end(cache_key)
+        return _IMAGE_CACHE[cache_key]
+    try:
+        res = requests.get(url, timeout=timeout)
+        if res.status_code == 200 and res.content:
+            _IMAGE_CACHE[cache_key] = res.content
+            if len(_IMAGE_CACHE) > MAX_CACHE_SIZE:
+                _IMAGE_CACHE.popitem(last=False)
+            return res.content
+        _LOGGER.warning("HTTP %s when fetching photo from %s", res.status_code, url[:60])
+    except Exception as ex:
+        _LOGGER.error("Failed fetching photo bytes from %s: %s", url[:60], ex)
+    return None
 
 
 async def async_setup_entry(
@@ -90,11 +118,6 @@ class StealthCamLatestPhotoCamera(CoordinatorEntity, Camera):
         )
 
     @property
-    def entity_picture(self) -> Optional[str]:
-        """Return entity picture thumbnail."""
-        return self.camera_data.get("latest_thumb_url") or self.camera_data.get("latest_image_url")
-
-    @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         """Return extra state attributes."""
         return {
@@ -129,16 +152,9 @@ class StealthCamLatestPhotoCamera(CoordinatorEntity, Camera):
         self, width: Optional[int] = None, height: Optional[int] = None
     ) -> Optional[bytes]:
         """Return bytes of latest photo."""
-        url = self.camera_data.get("latest_image_url") or self.camera_data.get("latest_thumb_url")
-        if not url:
-            return None
-        try:
-            res = requests.get(url, timeout=10)
-            if res.status_code == 200:
-                return res.content
-        except Exception as ex:
-            _LOGGER.error("Failed fetching photo bytes for %s: %s", self.camera_name, ex)
-        return None
+        url = self.camera_data.get("latest_thumb_url") or self.camera_data.get("latest_image_url")
+        guid = self.camera_data.get("latest_image_guid")
+        return fetch_and_cache_image(url, guid=guid)
 
 
 class StealthCamCapturePhotoCamera(CoordinatorEntity, Camera):
@@ -183,11 +199,6 @@ class StealthCamCapturePhotoCamera(CoordinatorEntity, Camera):
         )
 
     @property
-    def entity_picture(self) -> Optional[str]:
-        """Return thumbnail entity picture."""
-        return self.photo_data.get("thumb_url") or self.photo_data.get("image_url")
-
-    @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         """Return extra state attributes."""
         p = self.photo_data
@@ -215,13 +226,6 @@ class StealthCamCapturePhotoCamera(CoordinatorEntity, Camera):
         self, width: Optional[int] = None, height: Optional[int] = None
     ) -> Optional[bytes]:
         """Return bytes of this specific capture."""
-        url = self.photo_data.get("image_url") or self.photo_data.get("thumb_url")
-        if not url:
-            return None
-        try:
-            res = requests.get(url, timeout=10)
-            if res.status_code == 200:
-                return res.content
-        except Exception as ex:
-            _LOGGER.error("Failed fetching photo bytes for %s #%d: %s", self.camera_name, self.index + 1, ex)
-        return None
+        url = self.photo_data.get("thumb_url") or self.photo_data.get("image_url")
+        guid = self.photo_data.get("guid")
+        return fetch_and_cache_image(url, guid=guid)

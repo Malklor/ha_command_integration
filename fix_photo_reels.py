@@ -415,7 +415,7 @@ def build_stand_subview(cam: dict):
         "content": (
             f"## {cam.get('emoji', '🦌')} {name} Camera\n"
             f"**Position:** {{{{ states('{location_entity}') }}}}  •  **Heading:** {heading}\n\n"
-            f"🔄 **HA Cloud Sync:** `{{{{ states('sensor.stealthcam_last_cloud_sync') }}` (Auto-syncs every 5m)  •  [⬅️ Return to Trail Cams](/lovelace-basement/trail-cams)"
+            f"🔄 **HA Cloud Sync:** `{{{{ states('sensor.stealthcam_last_cloud_sync') }}}}` (Auto-syncs every 5m)  •  [⬅️ Return to Trail Cams](/lovelace-basement/trail-cams)"
         ),
     }
 

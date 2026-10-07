@@ -69,6 +69,18 @@ toggle_buck:
       selector:
         text:
 
+request_hd:
+  name: Request HD Photo
+  description: Schedule full-resolution uncompressed HD image upload from the cellular trail camera.
+  fields:
+    guid:
+      name: Image GUID
+      description: The unique GUID identifier of the capture.
+      required: true
+      example: "01a1109a-f850-73a7-9fb2-8b1be1024262"
+      selector:
+        text:
+
 sync_now:
   name: Sync Telemetry
   description: Immediately trigger a cloud refresh of camera telemetry, weather, and photos.

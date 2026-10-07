@@ -115,6 +115,48 @@ def extract_species_tag(c: Dict[str, Any], active_tags: Dict[str, Any]) -> str:
     return ""
 
 
+def extract_buck_score(c: Dict[str, Any]) -> Optional[str]:
+    """Extract antler points or buck score from capture metadata."""
+    if not isinstance(c, dict):
+        return None
+    score = (
+        c.get("score")
+        or c.get("buckScore")
+        or c.get("aiScore")
+        or c.get("grossScore")
+        or c.get("netScore")
+        or c.get("scoredValue")
+        or c.get("antlerScore")
+    )
+    if score is not None and str(score).strip() not in ("", "0", "None"):
+        return str(score).strip()
+    points = c.get("points") or c.get("antlerPoints")
+    if points is not None and str(points).strip() not in ("", "0", "None"):
+        return f"{points}-PT"
+    return None
+
+
+def extract_hd_info(c: Dict[str, Any]) -> tuple[bool, Optional[str]]:
+    """Extract HD availability and HD image URL."""
+    if not isinstance(c, dict):
+        return False, None
+    hd_url = (
+        c.get("hdImageUrl")
+        or (c.get("hdImageUrls")[0] if (c.get("hdImageUrls") and isinstance(c.get("hdImageUrls"), list)) else None)
+        or c.get("highResImageUrl")
+        or c.get("originalImageUrl")
+        or c.get("hiResUrl")
+    )
+    is_hd = bool(
+        c.get("isHd")
+        or c.get("hasHd")
+        or c.get("isHdDownloaded")
+        or c.get("isHiRes")
+        or hd_url
+    )
+    return is_hd, hd_url
+
+
 class StealthCamClient:
     """Client for interacting with the Stealth Cam Command Cloud REST API."""
 
@@ -242,6 +284,24 @@ class StealthCamClient:
         except Exception as ex:
             _LOGGER.warning("Failed fetching recent captures: %s", ex)
             return []
+
+    def request_hd_photo(self, image_guid: str) -> bool:
+        """Request full-resolution HD photo upload for a specific capture."""
+        self.ensure_auth()
+        endpoints = [
+            f"{self.base_url}/api/v6/file-manager/images/{image_guid}/request-hd",
+            f"{self.base_url}/api/v1/file-manager/images/{image_guid}/hd-request",
+            f"{self.base_url}/api/v1/file-manager/images/request-hd",
+        ]
+        for url in endpoints:
+            try:
+                res = self.session.post(url, json={"imageGuid": image_guid}, timeout=self.timeout)
+                if res.status_code in (200, 201, 204):
+                    _LOGGER.info("Successfully requested HD photo for GUID %s", image_guid)
+                    return True
+            except Exception as ex:
+                _LOGGER.warning("Attempt to request HD via %s failed: %s", url, ex)
+        return False
 
     def get_full_camera_data(self, tagged_bucks: Optional[Dict[str, Any]] = None) -> Dict[str, Dict[str, Any]]:
         """Fetch unified dictionary of all cameras with status, latest photo, weather, GPS, and stats."""
@@ -407,6 +467,8 @@ class StealthCamClient:
                 is_buck = (tag == "buck")
                 is_doe = (tag == "doe")
                 is_person = (tag == "person")
+                buck_score = extract_buck_score(c)
+                is_hd, hd_url = extract_hd_info(c)
 
                 time_str = "Recent"
                 hour = 0
@@ -418,13 +480,16 @@ class StealthCamClient:
                     except Exception:
                         time_str = str(cdt)[:16]
                 p_data = {
-                    "image_url": img_urls[0] if img_urls else None,
+                    "image_url": hd_url if (is_hd and hd_url) else (img_urls[0] if img_urls else None),
                     "thumb_url": thumb_urls[0] if thumb_urls else (img_urls[0] if img_urls else None),
                     "time_str": time_str,
                     "tag": tag,
                     "is_buck": is_buck,
                     "is_doe": is_doe,
                     "is_person": is_person,
+                    "buck_score": buck_score,
+                    "is_hd": is_hd,
+                    "hd_image_url": hd_url,
                     "guid": guid,
                     "hour": hour,
                 }
@@ -438,6 +503,8 @@ class StealthCamClient:
 
             rotate_angle = dev.get("rotateAngle")
             heading_cardinal = degrees_to_cardinal(rotate_angle) if rotate_angle is not None else "N/A"
+            latest_is_hd, latest_hd_url = extract_hd_info(latest_img)
+            latest_buck_score = extract_buck_score(latest_img)
 
             result[name] = {
                 "id": dev_id,
@@ -461,9 +528,12 @@ class StealthCamClient:
                 "last_sync_unix": status.get("lastSyncDateUnixTime"),
                 "firmware_version": status.get("firmwareVersion", "Unknown"),
                 # Photo & Environmental Telemetry
-                "latest_image_url": latest_img.get("imageUrl"),
+                "latest_image_url": latest_hd_url if (latest_is_hd and latest_hd_url) else latest_img.get("imageUrl"),
                 "latest_thumb_url": latest_img.get("thumbnailUrl"),
                 "latest_image_guid": latest_img.get("imageGuid"),
+                "latest_buck_score": latest_buck_score,
+                "latest_is_hd": latest_is_hd,
+                "latest_hd_image_url": latest_hd_url,
                 "temperature": latest_img.get("temperature"),
                 "pressure": latest_img.get("pressure"),
                 "pressure_tendency": latest_img.get("pressureTendency", "Steady"),

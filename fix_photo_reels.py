@@ -204,15 +204,23 @@ def build_dynamic_photo_card(slug: str, idx: int):
                 "show_name": True,
                 "show_label": True,
                 "entity_picture": f"[[[ return states['{photo_entity}'] ? (states['{photo_entity}'].attributes.entity_picture || states['{photo_entity}'].attributes.thumbnail_url || states['{photo_entity}'].attributes.image_url) : ''; ]]]",
-                "name": f"[[[ return states['{photo_entity}'] ? (states['{photo_entity}'].attributes.time_str || states['{photo_entity}'].attributes.friendly_name || 'Photo {idx + 1}') : 'Photo {idx + 1}'; ]]]",
+                "name": f"""[[[
+                  var e = states['{photo_entity}'];
+                  if (!e || !e.attributes) return 'Photo {idx + 1}';
+                  var t = e.attributes.time_str || e.attributes.friendly_name || 'Photo {idx + 1}';
+                  var hd = e.attributes.is_hd ? ' 💎' : '';
+                  return t + hd;
+                ]]]""",
                 "label": f"""[[[
                   var e = states['{photo_entity}'];
                   if (!e || !e.attributes) return '';
                   var tag = e.attributes.tag || '';
-                  if (e.attributes.is_buck || tag === 'buck') return '✨ VERIFIED BUCK';
-                  if (e.attributes.is_doe || tag === 'doe') return '🦌 VERIFIED DOE';
-                  if (e.attributes.is_person || tag === 'person') return '🚨 👤 HUMAN ACTIVITY';
-                  return '🔍 Tap for Photo';
+                  var score = e.attributes.buck_score ? (' (' + e.attributes.buck_score + (String(e.attributes.buck_score).includes('PT') ? '' : '\"') + ')') : '';
+                  var hd = e.attributes.is_hd ? ' 💎 HD' : '';
+                  if (e.attributes.is_buck || tag === 'buck') return '✨ VERIFIED BUCK' + score + hd;
+                  if (e.attributes.is_doe || tag === 'doe') return '🦌 VERIFIED DOE' + hd;
+                  if (e.attributes.is_person || tag === 'person') return '🚨 👤 HUMAN ACTIVITY' + hd;
+                  return (e.attributes.is_hd ? '💎 HD Photo • Tap to View' : '🔍 Tap for Photo');
                 ]]]""",
                 "tap_action": {"action": "more-info"},
                 "styles": {

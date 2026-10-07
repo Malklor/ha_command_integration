@@ -77,6 +77,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await hass.async_add_executor_job(_toggle_tag, guid, tag_type)
             await coordinator.async_request_refresh()
 
+    async def handle_request_hd(call: ServiceCall):
+        guid = call.data.get("guid")
+        if guid:
+            await hass.async_add_executor_job(coordinator.client.request_hd_photo, guid)
+            await coordinator.async_request_refresh()
+
     async def handle_sync_now(call: ServiceCall):
         await coordinator.async_request_refresh()
 
@@ -85,6 +91,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.services.async_register(DOMAIN, "tag_person", handle_tag_person)
     hass.services.async_register(DOMAIN, "tag_photo", handle_tag_photo)
     hass.services.async_register(DOMAIN, "toggle_buck", handle_tag_buck)
+    hass.services.async_register(DOMAIN, "request_hd", handle_request_hd)
     hass.services.async_register(DOMAIN, "sync_now", handle_sync_now)
 
     async def async_state_change_listener(event: Event):

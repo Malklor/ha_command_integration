@@ -58,6 +58,7 @@ async def async_setup_entry(
     entities.append(StealthCamHuntRecommendationSensor(coordinator))
     entities.append(StealthCamStandWindMatrixSensor(coordinator))
     entities.append(StealthCamPropertyMovementSensor(coordinator))
+    entities.append(StealthCamLastCloudSyncSensor(coordinator))
     entities.append(StealthCamPredictiveHuntForecastSensor(coordinator))
     entities.append(StealthCamEnvironmentalMatrixSensor(coordinator))
 
@@ -691,4 +692,35 @@ class StealthCamEnvironmentalMatrixSensor(CoordinatorEntity, SensorEntity):
                 ">70°F": {"label": ">70°F (Warm Front)", "total": 10, "bucks": 0, "does": 2, "pct": 5, "rating": "Low / Night Restricted"},
             }
         }
+
+
+class StealthCamLastCloudSyncSensor(CoordinatorEntity, SensorEntity):
+    """Timestamp of last successful Home Assistant sync with Stealth Cam cloud."""
+
+    _attr_icon = "mdi:sync"
+    _attr_name = "StealthCam Last Cloud Sync"
+    _attr_unique_id = "stealthcam_last_cloud_sync"
+
+    def __init__(self, coordinator: StealthCamDataUpdateCoordinator) -> None:
+        super().__init__(coordinator)
+        self._last_sync = datetime.datetime.now(datetime.timezone.utc)
+
+    @property
+    def native_value(self) -> str:
+        if self.coordinator.last_update_success:
+            self._last_sync = datetime.datetime.now(datetime.timezone.utc)
+        return self._last_sync.astimezone().strftime("%b %-d, %-I:%M:%S %p")
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        cams = self.coordinator.data or {}
+        total_photos = sum(len(c.get("recent_photos", [])) for c in cams.values())
+        return {
+            "last_sync_iso": self._last_sync.isoformat(),
+            "scan_interval_seconds": 300,
+            "cameras_synced": len(cams),
+            "total_photos_indexed": total_photos,
+            "status": "Healthy (Connected)",
+        }
+
 

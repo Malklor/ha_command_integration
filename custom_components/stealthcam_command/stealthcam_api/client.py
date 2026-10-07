@@ -1,5 +1,6 @@
 """Stealth Cam Command API Client."""
 
+from concurrent.futures import ThreadPoolExecutor
 import datetime
 import json
 import logging
@@ -33,13 +34,20 @@ def degrees_to_cardinal(deg: Optional[float]) -> str:
 
 def extract_species_tag(c: Dict[str, Any], active_tags: Dict[str, Any]) -> str:
     """Extract and normalize species tag (buck, doe, person) from image capture data."""
-    guid = c.get("imageGuid")
+    guid = c.get("imageGuid") or c.get("guid")
     if guid and guid in active_tags:
         raw_tag = active_tags[guid]
         if raw_tag is True:
             return "buck"
         if isinstance(raw_tag, str) and raw_tag:
-            return raw_tag.lower()
+            low = raw_tag.lower().strip()
+            if "buck" in low or "antler" in low:
+                return "buck"
+            if "doe" in low or "fawn" in low or "deer" in low:
+                return "doe"
+            if "human" in low or "person" in low or "people" in low:
+                return "person"
+            return low
 
     # Direct booleans
     if c.get("isBuckScored") or c.get("isBuck") or c.get("isWhitetailBuck") or c.get("whitetailBuck"):
@@ -303,6 +311,44 @@ class StealthCamClient:
                 _LOGGER.warning("Attempt to request HD via %s failed: %s", url, ex)
         return False
 
+    def fetch_cloud_tags(self) -> Dict[str, str]:
+        """Fetch all species tags from the Command Cloud and map image GUIDs to tag names."""
+        self.ensure_auth()
+        tag_map: Dict[str, str] = {}
+        try:
+            url = f"{self.base_url}/api/v1/file-manager/tags"
+            res = self.session.get(url, timeout=self.timeout)
+            if res.status_code != 200:
+                return tag_map
+            tags = res.json()
+            if not isinstance(tags, list):
+                return tag_map
+
+            def _fetch_single_tag(tag_name: str):
+                try:
+                    p = {"takeCount": 300, "skipCount": 0, "tags": [tag_name]}
+                    r = self.session.post(
+                        f"{self.base_url}/api/v6/file-manager/images",
+                        json=p,
+                        timeout=self.timeout,
+                    )
+                    if r.status_code == 200:
+                        return tag_name, r.json().get("images", [])
+                except Exception as ex:
+                    _LOGGER.debug("Error fetching tag %s: %s", tag_name, ex)
+                return tag_name, []
+
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                results = executor.map(_fetch_single_tag, tags)
+                for tag_name, images in results:
+                    for img in images:
+                        guid = img.get("imageGuid") or img.get("guid")
+                        if guid:
+                            tag_map[guid] = tag_name
+        except Exception as ex:
+            _LOGGER.warning("Failed to fetch cloud tags: %s", ex)
+        return tag_map
+
     def get_full_camera_data(self, tagged_bucks: Optional[Dict[str, Any]] = None) -> Dict[str, Dict[str, Any]]:
         """Fetch unified dictionary of all cameras with status, latest photo, weather, GPS, and stats."""
         devices = self.get_devices()
@@ -310,6 +356,7 @@ class StealthCamClient:
         statuses = self.get_device_statuses(pdis)
         latest_images = self.get_latest_images()
         recent_captures = self.get_recent_captures(limit=600)
+        cloud_tags = self.fetch_cloud_tags()
 
         status_map = {s["physicalDeviceIdentifier"]: s for s in statuses}
         image_map = {img["deviceName"]: img for img in latest_images if "deviceName" in img}
@@ -320,6 +367,22 @@ class StealthCamClient:
             dev_id = cap.get("deviceId")
             if dev_id:
                 captures_by_dev.setdefault(dev_id, []).append(cap)
+
+        active_tags = dict(cloud_tags)
+        if tagged_bucks is not None:
+            active_tags.update(tagged_bucks)
+        else:
+            tagged_file = "/config/stealthcam_tagged_bucks.json"
+            if not os.path.exists(tagged_file):
+                tagged_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tagged_bucks.json")
+            if not os.path.exists(tagged_file):
+                tagged_file = "/home/tgoetz/Projects/ha_command_integration/tagged_bucks.json"
+            if os.path.exists(tagged_file):
+                try:
+                    with open(tagged_file) as tf:
+                        active_tags.update(json.load(tf))
+                except Exception:
+                    pass
 
         result = {}
         for dev in devices:
@@ -350,22 +413,9 @@ class StealthCamClient:
             midday_24h = 0
             night_24h = 0
 
+            last_hit_dt = None
             if dev_captures:
                 last_hit_dt = dev_captures[0].get("createdDateTime") or dev_captures[0].get("uploadedTime")
-
-            active_tags = dict(tagged_bucks) if tagged_bucks is not None else {}
-            if tagged_bucks is None:
-                tagged_file = "/config/stealthcam_tagged_bucks.json"
-                if not os.path.exists(tagged_file):
-                    tagged_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tagged_bucks.json")
-                if not os.path.exists(tagged_file):
-                    tagged_file = "/home/tgoetz/Projects/ha_command_integration/tagged_bucks.json"
-                if os.path.exists(tagged_file):
-                    try:
-                        with open(tagged_file) as tf:
-                            active_tags = json.load(tf)
-                    except Exception:
-                        pass
 
             for c in dev_captures:
                 tag = extract_species_tag(c, active_tags)

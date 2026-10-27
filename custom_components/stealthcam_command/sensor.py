@@ -443,7 +443,7 @@ class StealthCamStandWindMatrixSensor(CoordinatorEntity, SensorEntity):
         for name, c in cams.items():
             details[name] = {
                 "heading": c.get("heading", "N/A"),
-                "status": "🟢 Favorable" if c.get("wind_speed", 0) < 15 else "🟡 Marginal",
+                "status": "🟢 Favorable" if (c.get("wind_speed") or 0) < 15 else "🟡 Marginal",
             }
         return {
             "wind_speed_mph": 5.0,

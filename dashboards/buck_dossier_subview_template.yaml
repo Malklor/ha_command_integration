@@ -60,6 +60,7 @@ cards:
               ## 🦌 {{ a.get('buck_name', 'Buck Profile') }} — <span style="color: #f39c12;">{{ a.get('points', 'Unknown') }}</span>
               - 📐 **Beam Spread:** `{{ a.get('beam_spread', 'Unknown') }}`  •  🎂 **Est. Age:** `{{ a.get('age_estimate', 'Unknown') }}`
               - 📍 **Last Seen:** <b style="color: #2ecc71;">{{ a.get('last_seen_formatted', 'N/A') }}</b> at **{{ a.get('last_seen_stand', 'N/A') }}**
+              - 🗺️ **GPS Location:** `{{ a.get('latitude') }}, {{ a.get('longitude') }}` (`{{ a.get('heading', 'N/A') }}`)
               - 🗓️ **First Sighting:** `{{ a.get('first_seen_formatted', 'N/A') }}`
               - 🎯 **Total Sightings:** **{{ a.get('sightings_count', 0) }} Unique Sightings** (`{{ a.get('total_photos_count', 0) }}` archived burst photos)
               - 📝 **Antler & Physical Notes:** *{{ a.get('antler_notes', '') }}*
@@ -102,7 +103,15 @@ cards:
           - 💨 **Preferred Wind Direction:** `{{ a.get('preferred_wind', 'Variable') }}` (Last: `{{ a.get('last_seen_wind', 'Calm') }}`)
           - 🌔 **Last Moon Phase:** `{{ a.get('last_seen_moon', 'N/A') }}`
 
-      # 3. Chronological Sighting History Table
+      # 3. Last Seen GPS Map (Uses latitude & longitude on camera.stealthcam_buck_profile_<slot>)
+      - type: map
+        title: "🗺️ Last Seen Camera GPS Position"
+        default_zoom: 17
+        hours_to_show: 24
+        entities:
+          - camera.stealthcam_buck_profile_<slot>
+
+      # 4. Chronological Sighting History Table
       - type: markdown
         title: "📋 Deduplicated Sighting Log"
         content: |

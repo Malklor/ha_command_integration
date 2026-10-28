@@ -256,7 +256,13 @@ class StealthCamBuckTracker:
 
         # Collect all buck sightings from all cameras
         all_sightings: List[Dict[str, Any]] = []
+        cam_gps_map: Dict[str, Dict[str, Any]] = {}
         for cam_name, cdata in camera_data.items():
+            cam_gps_map[cam_name] = {
+                "latitude": cdata.get("latitude"),
+                "longitude": cdata.get("longitude"),
+                "heading": cdata.get("heading"),
+            }
             for b_sighting in cdata.get("buck_sightings", []):
                 all_sightings.append(b_sighting)
 
@@ -269,6 +275,10 @@ class StealthCamBuckTracker:
             dev_id = s["device_id"]
             captures = s.get("captures", [])
             guids = s.get("guids", [])
+            gps_info = cam_gps_map.get(cam_name, {})
+            lat = s.get("latitude") if s.get("latitude") is not None else gps_info.get("latitude")
+            lon = s.get("longitude") if s.get("longitude") is not None else gps_info.get("longitude")
+            heading = s.get("heading") or gps_info.get("heading") or "Unknown"
 
             for g in guids:
                 guid_map[g] = sighting_id
@@ -299,6 +309,9 @@ class StealthCamBuckTracker:
                     "guid": c_guid,
                     "index_in_burst": idx,
                     "created_at": cap.get("createdDateTime") or cap.get("uploadedTime"),
+                    "latitude": lat,
+                    "longitude": lon,
+                    "heading": heading,
                     "is_hd": bool(local_hd or is_hd),
                     "hq_photo_status": hq_status,
                     "local_path": best_local,
@@ -377,6 +390,9 @@ class StealthCamBuckTracker:
                     "hero_guid": hero_guid,
                     "camera_name": cam_name,
                     "device_id": dev_id,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "heading": heading,
                     "created_at": created_iso,
                     "time_formatted": time_formatted,
                     "hour": hour,
@@ -412,9 +428,14 @@ class StealthCamBuckTracker:
                 sightings_db[sighting_id] = existing_s
                 changed = True
             else:
-                # Sighting already exists: update photo statuses and run Iterative HD State Machine!
+                # Sighting already exists: update photo statuses, GPS coordinates, and run Iterative HD State Machine!
                 existing_s["photos"] = saved_photos
                 existing_s["burst_count"] = len(saved_photos)
+                if lat is not None and existing_s.get("latitude") != lat:
+                    existing_s["latitude"] = lat
+                    existing_s["longitude"] = lon
+                    existing_s["heading"] = heading
+                    changed = True
                 cand_idx = int(existing_s.get("hd_candidate_index", 0))
                 if cand_idx < len(saved_photos):
                     cand_photo = saved_photos[cand_idx]
@@ -565,6 +586,9 @@ class StealthCamBuckTracker:
                     "sighting_id": item["sighting_id"],
                     "hero_guid": item["hero_guid"],
                     "stand": item["camera_name"],
+                    "latitude": item.get("latitude"),
+                    "longitude": item.get("longitude"),
+                    "heading": item.get("heading"),
                     "time_formatted": item["time_formatted"],
                     "created_at": item["created_at"],
                     "time_window": item["time_window"],
@@ -581,6 +605,9 @@ class StealthCamBuckTracker:
                     all_photos.append({
                         **p,
                         "stand": item["camera_name"],
+                        "latitude": p.get("latitude") if p.get("latitude") is not None else item.get("latitude"),
+                        "longitude": p.get("longitude") if p.get("longitude") is not None else item.get("longitude"),
+                        "heading": p.get("heading") or item.get("heading"),
                         "time_formatted": item["time_formatted"],
                         "temperature": item["temperature"],
                         "wind_cardinal": item["wind_cardinal"],
@@ -612,6 +639,9 @@ class StealthCamBuckTracker:
                 "last_seen_at": latest.get("created_at"),
                 "last_seen_formatted": latest.get("time_formatted"),
                 "last_seen_stand": latest.get("camera_name"),
+                "latitude": latest.get("latitude"),
+                "longitude": latest.get("longitude"),
+                "heading": latest.get("heading"),
                 "last_seen_temp": latest.get("temperature"),
                 "last_seen_pressure": latest.get("pressure"),
                 "last_seen_pressure_tendency": latest.get("pressure_tendency"),

@@ -463,11 +463,15 @@ class StealthCamClient:
                     if is_new_consecutive_run:
                         buck_hits_count += 1
                         first_guid = c.get("imageGuid") or c.get("guid") or ""
+                        rot = dev.get("rotateAngle")
                         current_buck_sighting = {
                             "sighting_id": f"{dev_id}_{first_guid}",
                             "camera_name": name,
                             "device_id": dev_id,
                             "pdi": pdi,
+                            "latitude": dev.get("latitude"),
+                            "longitude": dev.get("longitude"),
+                            "heading": f"{degrees_to_cardinal(rot)} ({rot}°)" if rot is not None else "Unknown",
                             "hero_guid": first_guid,
                             "created_at": c.get("createdDateTime") or c.get("uploadedTime"),
                             "captures": [c],

@@ -1,0 +1,134 @@
+# ==============================================================================
+# Stealth Cam Command - Target Buck Registry & Hit-List Hub View
+# Dashboard Path: /lovelace/buck-registry
+# ==============================================================================
+
+title: Buck Registry
+path: buck-registry
+subview: true
+icon: mdi:deer
+cards:
+  # 1. Navigation & Executive Hit-List Summary Header
+  - type: custom:vertical-stack-in-card
+    cards:
+      - type: custom:button-card
+        name: "← Back to Trail Cams Main Hub"
+        icon: mdi:arrow-left-bold-circle-outline
+        show_name: true
+        show_icon: true
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/trail-cams
+        styles:
+          card:
+            - border-radius: 12px 12px 0 0
+            - padding: 10px 16px
+            - background: rgba(243, 156, 18, 0.16)
+            - border-bottom: 1px solid rgba(243, 156, 18, 0.35)
+            - cursor: pointer
+          icon:
+            - color: "#f39c12"
+            - width: 20px
+            - height: 20px
+          name:
+            - font-size: 14px
+            - font-weight: 700
+            - color: "#f39c12"
+            - text-align: left
+          grid:
+            - grid-template-columns: 28px 1fr
+            - grid-template-areas: "'i n'"
+      - type: markdown
+        content: |
+          ## 🦌 Target Buck Registry & Hit-List
+          {% set reg = states.sensor.stealthcam_buck_profiles.attributes if states.sensor.stealthcam_buck_profiles is defined else {} %}
+          {% set bucks = reg.get('bucks', []) %}
+          **Unique Bucks Identified:** <b style="color: #f39c12;">{{ reg.get('unique_bucks_count', 0) }} Bucks</b>  •  **Deduplicated Sightings:** `{{ reg.get('total_buck_sightings', 0) }}`  •  **HD Photos Requested:** `{{ reg.get('hd_pending_count', 0) }} Pending / {{ reg.get('hd_completed_count', 0) }} Complete`
+
+          <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <tr style="background: rgba(255, 255, 255, 0.08); border-bottom: 2px solid rgba(243, 156, 18, 0.4);">
+              <th style="padding: 8px; text-align: left;">Buck Name</th>
+              <th style="padding: 8px; text-align: left;">Rack & Spread</th>
+              <th style="padding: 8px; text-align: center;">Sightings (Photos)</th>
+              <th style="padding: 8px; text-align: left;">Last Seen</th>
+              <th style="padding: 8px; text-align: left;">Last Camera</th>
+              <th style="padding: 8px; text-align: left;">Primary Window & Corridor</th>
+            </tr>
+            {% for b in bucks %}
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
+              <td style="padding: 8px;">🦌 <b style="color: #f39c12; font-size: 14px;">{{ b.name }}</b><br><small style="color: #aaa;">{{ b.age_estimate }}</small></td>
+              <td style="padding: 8px;"><b>{{ b.points }}</b><br><small style="color: #ccc;">{{ b.beam_spread }}</small></td>
+              <td style="padding: 8px; text-align: center;"><b style="color: #2ecc71;">{{ b.sightings_count }}</b> <small>({{ b.total_photos_count }} pics)</small></td>
+              <td style="padding: 8px;"><code>{{ b.last_seen_formatted }}</code></td>
+              <td style="padding: 8px;">📍 <b>{{ b.last_seen_stand }}</b><br><small style="color: #aaa;">Fav: {{ b.favorite_stand }}</small></td>
+              <td style="padding: 8px;"><b>{{ b.preferred_window }}</b> ({{ b.daylight_pct }}% Daylight){% if b.travel_corridors %}<br><small style="color: #2ecc71;">🧭 {{ b.travel_corridors[0] }}</small>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </table>
+
+  # 2. Interactive Buck Profile Cards Grid (Click any Buck Card to Open its Full Dossier & Photo Gallery)
+  - type: custom:auto-entities
+    card:
+      type: custom:layout-card
+      layout_type: custom:grid-layout
+      layout:
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr))
+        grid-gap: 16px
+        margin: 0px
+    filter:
+      include:
+        - entity_id: "camera.stealthcam_buck_profile_*"
+          attributes:
+            active: true
+          options:
+            type: custom:button-card
+            entity: this.entity_id
+            show_entity_picture: true
+            show_name: true
+            show_label: true
+            entity_picture: "[[[ return entity.attributes.entity_picture; ]]]"
+            name: |
+              [[[
+                return '🦌 ' + (entity.attributes.buck_name || 'Buck') + ' — ' + (entity.attributes.points || '');
+              ]]]
+            label: |
+              [[[
+                var a = entity.attributes;
+                var corridor = (a.travel_corridors && a.travel_corridors.length > 0)
+                  ? '<div style="margin-top:4px; color:#2ecc71; font-weight:700;">🧭 Corridor: ' + a.travel_corridors[0] + '</div>'
+                  : '';
+                return '<div style="text-align:left; font-size:12px; line-height:1.55; color:#ddd;">' +
+                  '<div>📍 <b>Last Seen:</b> ' + (a.last_seen_formatted || 'N/A') + ' at <b style="color:#f39c12;">' + (a.last_seen_stand || 'N/A') + '</b></div>' +
+                  '<div>🎯 <b>Sightings:</b> <b style="color:#2ecc71;">' + (a.sightings_count || 0) + ' Unique Sightings</b> (' + (a.total_photos_count || 0) + ' Photos) • <b>Fav Stand:</b> ' + (a.favorite_stand || 'N/A') + '</div>' +
+                  '<div>📐 <b>Spread:</b> ' + (a.beam_spread || 'N/A') + ' • <b>Age:</b> ' + (a.age_estimate || 'N/A') + ' • ☀️ <b>' + (a.daylight_pct || 0) + '% Daylight</b></div>' +
+                  corridor +
+                  '<div style="margin-top:8px; padding:6px 10px; background:rgba(243,156,18,0.18); border:1px solid rgba(243,156,18,0.45); border-radius:6px; color:#f39c12; font-weight:700; text-align:center;">🔍 Tap to Open Full Buck Dossier & All Photos →</div>' +
+                  '</div>';
+              ]]]
+            tap_action:
+              action: navigate
+              navigation_path: "[[[ return '/lovelace/buck-' + (entity.attributes.slot || 1); ]]]"
+            styles:
+              card:
+                - border-radius: 14px
+                - padding: 0
+                - overflow: hidden
+                - border: 2px solid rgba(243, 156, 18, 0.65)
+                - box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45)
+                - background: var(--card-background-color, #1c1c1e)
+                - cursor: pointer
+              entity_picture:
+                - width: 100%
+                - height: 220px
+                - object-fit: cover
+                - background: "#000"
+              name:
+                - font-size: 17px
+                - font-weight: 800
+                - color: "#f39c12"
+                - padding: 10px 14px 4px 14px
+                - text-align: left
+              label:
+                - padding: 2px 14px 14px 14px
+                - width: 100%
+                - box-sizing: border-box

@@ -61,9 +61,11 @@ async def async_setup_entry(
         for idx in range(36):
             entities.append(StealthCamCapturePhotoCamera(coordinator, name, pdi, idx))
 
-    # Create 8 Target Buck Profile Camera slots served from /media/stealthcam_bucks/
+    # Create 8 Target Buck Profile Camera slots + 20 per-buck gallery photo entities served from /media/stealthcam_bucks/
     for idx in range(8):
         entities.append(StealthCamProfiledBuckCamera(coordinator, idx))
+        for p_idx in range(20):
+            entities.append(StealthCamBuckGalleryPhotoCamera(coordinator, idx, p_idx))
 
     async_add_entities(entities)
 
@@ -347,4 +349,97 @@ class StealthCamProfiledBuckCamera(CoordinatorEntity, Camera):
             except Exception as ex:
                 _LOGGER.warning("Failed reading local buck hero image %s: %s", local_path, ex)
         return fetch_and_cache_image(b.get("hero_cloud_url"), guid=b.get("hero_guid"))
+
+
+class StealthCamBuckGalleryPhotoCamera(CoordinatorEntity, Camera):
+    """Camera entity serving an individual historical capture in a profiled buck's photo gallery."""
+
+    _attr_icon = "mdi:camera-burst"
+
+    def __init__(
+        self,
+        coordinator: StealthCamDataUpdateCoordinator,
+        buck_index: int,
+        photo_index: int,
+    ) -> None:
+        """Initialize per-buck gallery photo camera slot."""
+        CoordinatorEntity.__init__(self, coordinator)
+        Camera.__init__(self)
+        self.buck_index = buck_index
+        self.photo_index = photo_index
+        self._attr_unique_id = f"stealthcam_buck_{buck_index + 1}_photo_{photo_index + 1}"
+        self._attr_name = f"StealthCam Buck {buck_index + 1} Photo {photo_index + 1}"
+
+    @property
+    def buck_data(self) -> Dict[str, Any]:
+        """Return buck profile dictionary for this buck index."""
+        reg = getattr(self.coordinator, "buck_registry_data", {}) or {}
+        bucks = reg.get("bucks", [])
+        if self.buck_index < len(bucks):
+            return bucks[self.buck_index]
+        return {}
+
+    @property
+    def photo_data(self) -> Dict[str, Any]:
+        """Return the specific gallery photo dictionary for this slot."""
+        gallery = self.buck_data.get("gallery", [])
+        if self.photo_index < len(gallery):
+            return gallery[self.photo_index]
+        return {}
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if this gallery photo slot is populated."""
+        return bool(self.photo_data.get("guid"))
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return full metadata for this specific buck photo."""
+        b = self.buck_data
+        p = self.photo_data
+        if not p:
+            return {
+                "active": False,
+                "buck_slot": self.buck_index + 1,
+                "photo_slot": self.photo_index + 1,
+            }
+        return {
+            "active": True,
+            "buck_slot": self.buck_index + 1,
+            "photo_slot": self.photo_index + 1,
+            "buck_id": b.get("buck_id"),
+            "buck_name": b.get("name"),
+            "points": b.get("points"),
+            "guid": p.get("guid"),
+            "stand": p.get("stand"),
+            "time_str": p.get("time_formatted") or "Recent",
+            "created_at": p.get("created_at"),
+            "is_hd": p.get("is_hd", False),
+            "hq_photo_status": p.get("hq_photo_status", "NotRequested"),
+            "temperature": p.get("temperature"),
+            "wind_cardinal": p.get("wind_cardinal"),
+            "moon_phase": p.get("moon_phase"),
+            "local_path": p.get("local_path"),
+            "media_source_id": p.get("media_source_id"),
+            "image_url": p.get("cloud_image_url"),
+            "thumbnail_url": p.get("cloud_thumb_url") or p.get("cloud_image_url"),
+        }
+
+    def camera_image(
+        self, width: Optional[int] = None, height: Optional[int] = None
+    ) -> Optional[bytes]:
+        """Return bytes of this buck gallery photo from `/media/stealthcam_bucks/` or fallback cloud URL."""
+        p = self.photo_data
+        if not p:
+            return None
+        local_path = p.get("local_path")
+        if local_path and os.path.exists(local_path):
+            try:
+                with open(local_path, "rb") as f:
+                    return f.read()
+            except Exception as ex:
+                _LOGGER.warning("Failed reading local buck gallery photo %s: %s", local_path, ex)
+        url = p.get("cloud_image_url") or p.get("cloud_thumb_url")
+        return fetch_and_cache_image(url, guid=p.get("guid"))
+
 

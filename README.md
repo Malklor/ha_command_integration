@@ -72,6 +72,7 @@ Provides real-time hardware telemetry, cellular connectivity monitoring, field w
 | **Location Sensor** | `sensor.stealth_cam_north_ridge_north_ridge_stand_location` | GPS coordinates and stand compass bearing |
 | **Buck Profiles Sensor (Hub)** | `sensor.stealthcam_buck_profiles` | Master Target Buck Hit-List, movement logs, and stand corridors |
 | **Profiled Buck Cameras (1–8)** | `camera.stealthcam_buck_profile_1` | Live hero portrait camera entities for up to 8 named property bucks |
+| **Buck Gallery Cameras (1–20)** | `camera.stealthcam_buck_1_photo_1` | Per-buck historical capture camera entities (up to 20 photos per buck) |
 
 ---
 
@@ -165,6 +166,12 @@ Dedicated full dashboard view featuring 5-day predictive forecast tables, temper
 
 ### 📸 Stand Deep-Dive & 36-Photo Reel ([`dashboards/camera_subview_template.yaml`](dashboards/camera_subview_template.yaml))
 Provides individual stand telemetry, 24-hr time-of-day movement distribution, verified buck/doe hit badges, responsive mobile 2-column photo reel, and auto-populates all 36 capture entities.
+
+### 🦌 Target Buck Registry & Hit-List Hub ([`dashboards/buck_registry_view.yaml`](dashboards/buck_registry_view.yaml))
+Dedicated summary page showing all identified unique bucks, rack points/spread, last seen timestamp, last camera, unique sighting count, and clickable hero cards that navigate into each buck's full dossier.
+
+### 🏆 Individual Buck Dossier & Full Photo Vault ([`dashboards/buck_dossier_subview_template.yaml`](dashboards/buck_dossier_subview_template.yaml))
+Per-buck deep-dive subview (`buck-1`..`buck-8`) displaying the buck's hero portrait, time-of-day behavior breakdown, camera stand frequency, verified stand-to-stand travel corridors, weather/barometer triggers, chronological sighting log, and full photo gallery (`camera.stealthcam_buck_<slot>_photo_1..20`).
 
 ---
 

@@ -1,0 +1,199 @@
+# ==============================================================================
+# Stealth Cam Command - Individual Buck Deep-Dive Dossier & Full Photo Gallery
+# Replace <slot> with the buck profile slot number (1..8), e.g. buck-1
+# ==============================================================================
+
+title: Buck Dossier
+path: buck-<slot>
+subview: true
+icon: mdi:deer
+type: custom:grid-layout
+layout:
+  grid-template-columns: 400px 1fr
+  grid-gap: 16px
+  mediaquery:
+    "(max-width: 950px)":
+      grid-template-columns: 100%
+cards:
+  # ============================================================================
+  # Left Column: Navigation, Antler Profile, Behavior Breakdown & Sighting Log
+  # ============================================================================
+  - type: vertical-stack
+    cards:
+      # 1. Navigation & Buck Identity Card
+      - type: custom:vertical-stack-in-card
+        cards:
+          - type: custom:button-card
+            name: "← Back to Buck Registry & Hit-List"
+            icon: mdi:arrow-left-bold-circle-outline
+            show_name: true
+            show_icon: true
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/buck-registry
+            styles:
+              card:
+                - border-radius: 12px 12px 0 0
+                - padding: 10px 16px
+                - background: rgba(243, 156, 18, 0.16)
+                - border-bottom: 1px solid rgba(243, 156, 18, 0.35)
+                - cursor: pointer
+              icon:
+                - color: "#f39c12"
+                - width: 20px
+                - height: 20px
+              name:
+                - font-size: 14px
+                - font-weight: 700
+                - color: "#f39c12"
+                - text-align: left
+              grid:
+                - grid-template-columns: 28px 1fr
+                - grid-template-areas: "'i n'"
+          - type: picture-entity
+            entity: camera.stealthcam_buck_profile_<slot>
+            show_name: false
+            show_state: false
+          - type: markdown
+            content: |
+              {% set a = states.camera.stealthcam_buck_profile_<slot>.attributes if states.camera.stealthcam_buck_profile_<slot> is defined else {} %}
+              ## 🦌 {{ a.get('buck_name', 'Buck Profile') }} — <span style="color: #f39c12;">{{ a.get('points', 'Unknown') }}</span>
+              - 📐 **Beam Spread:** `{{ a.get('beam_spread', 'Unknown') }}`  •  🎂 **Est. Age:** `{{ a.get('age_estimate', 'Unknown') }}`
+              - 📍 **Last Seen:** <b style="color: #2ecc71;">{{ a.get('last_seen_formatted', 'N/A') }}</b> at **{{ a.get('last_seen_stand', 'N/A') }}**
+              - 🗓️ **First Sighting:** `{{ a.get('first_seen_formatted', 'N/A') }}`
+              - 🎯 **Total Sightings:** **{{ a.get('sightings_count', 0) }} Unique Sightings** (`{{ a.get('total_photos_count', 0) }}` archived burst photos)
+              - 📝 **Antler & Physical Notes:** *{{ a.get('antler_notes', '') }}*
+
+      # 2. Behavioral Breakdown & Environmental Preferences
+      - type: markdown
+        title: "🧭 Behavior & Movement Breakdown"
+        content: |
+          {% set a = states.camera.stealthcam_buck_profile_<slot>.attributes if states.camera.stealthcam_buck_profile_<slot> is defined else {} %}
+          {% set wb = a.get('window_breakdown', {}) %}
+          {% set sb = a.get('stand_breakdown', {}) %}
+          {% set corridors = a.get('travel_corridors', []) %}
+          ### ⏰ Time-of-Day Activity ({{ a.get('daylight_pct', 0) }}% Daylight)
+          - 🏆 **Preferred Window:** <b style="color: #f39c12;">{{ a.get('preferred_window', 'Night') }}</b>
+          - 🌅 **Dawn (5–9 AM):** `{{ wb.get('Dawn', 0) }} sightings`
+          - ☀️ **Midday (9 AM–5 PM):** `{{ wb.get('Midday', 0) }} sightings`
+          - 🌇 **Dusk (5–9 PM):** `{{ wb.get('Dusk', 0) }} sightings`
+          - 🌙 **Night (9 PM–5 AM):** `{{ wb.get('Night', 0) }} sightings`
+
+          ---
+
+          ### 📍 Camera Stand Frequency
+          - ⭐ **Primary Core Stand:** <b style="color: #2ecc71;">{{ a.get('favorite_stand', 'N/A') }}</b>
+          {% for st, cnt in sb.items() %}- 📷 **{{ st }}:** `{{ cnt }} sighting{{ 's' if cnt != 1 else '' }}`
+          {% endfor %}
+
+          {% if corridors | length > 0 %}
+          ---
+
+          ### 🛤️ Verified Stand-to-Stand Travel Corridors
+          {% for c in corridors %}- 🧭 <b style="color: #2ecc71;">{{ c }}</b>
+          {% endfor %}
+          {% endif %}
+
+          ---
+
+          ### 🌤️ Weather & Barometric Trigger Profile
+          - 🌡️ **Average Movement Temp:** `{{ a.get('avg_temp', 'N/A') }}°F` (Last seen at `{{ a.get('last_seen_temp', 'N/A') }}°F`)
+          - 📈 **Average Barometer:** `{{ a.get('avg_pressure', 'N/A') }} inHg` ({{ a.get('last_seen_pressure_tendency', 'Steady') }})
+          - 💨 **Preferred Wind Direction:** `{{ a.get('preferred_wind', 'Variable') }}` (Last: `{{ a.get('last_seen_wind', 'Calm') }}`)
+          - 🌔 **Last Moon Phase:** `{{ a.get('last_seen_moon', 'N/A') }}`
+
+      # 3. Chronological Sighting History Table
+      - type: markdown
+        title: "📋 Deduplicated Sighting Log"
+        content: |
+          {% set a = states.camera.stealthcam_buck_profile_<slot>.attributes if states.camera.stealthcam_buck_profile_<slot> is defined else {} %}
+          {% set logs = a.get('movement_log', []) %}
+          <table style="width: 100%; border-collapse: collapse; margin-top: 6px;">
+            <tr style="background: rgba(255, 255, 255, 0.08); border-bottom: 1px solid rgba(255, 255, 255, 0.15);">
+              <th style="padding: 6px; text-align: left;">Date / Time</th>
+              <th style="padding: 6px; text-align: left;">Stand</th>
+              <th style="padding: 6px; text-align: center;">Burst</th>
+              <th style="padding: 6px; text-align: left;">Weather</th>
+              <th style="padding: 6px; text-align: left;">HD Status</th>
+            </tr>
+            {% for m in logs %}
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <td style="padding: 6px;"><code>{{ m.time_formatted }}</code><br><small style="color: #aaa;">{{ m.time_window }}</small></td>
+              <td style="padding: 6px;"><b style="color: #f39c12;">{{ m.stand }}</b></td>
+              <td style="padding: 6px; text-align: center;"><code>{{ m.burst_count }} pics</code></td>
+              <td style="padding: 6px; font-size: 12px;">{{ m.temperature }}°F • {{ m.wind }}<br><small style="color: #aaa;">{{ m.pressure }} inHg ({{ m.pressure_tendency }})</small></td>
+              <td style="padding: 6px; font-size: 11px;"><code>{{ m.hd_status }}</code></td>
+            </tr>
+            {% endfor %}
+          </table>
+
+  # ============================================================================
+  # Right Column: Complete Photo Vault Gallery for This Buck
+  # ============================================================================
+  - type: vertical-stack
+    cards:
+      - type: markdown
+        content: |
+          {% set a = states.camera.stealthcam_buck_profile_<slot>.attributes if states.camera.stealthcam_buck_profile_<slot> is defined else {} %}
+          ### 📸 All Captured Photos of **{{ a.get('buck_name', 'This Buck') }}** (`{{ a.get('total_photos_count', 0) }}` Photos Archived in `/media/stealthcam_bucks/`)
+          *Tap any photo card below to open the full-resolution zoomable camera dialog.*
+      - type: custom:auto-entities
+        card:
+          type: custom:layout-card
+          layout_type: custom:grid-layout
+          layout:
+            grid-template-columns: repeat(3, 1fr)
+            grid-gap: 12px
+            margin: 0px
+            mediaquery:
+              "(max-width: 950px)":
+                grid-template-columns: repeat(2, 1fr)
+                grid-gap: 8px
+        filter:
+          include:
+            - entity_id: "camera.stealthcam_buck_<slot>_photo_*"
+              attributes:
+                active: true
+              options:
+                type: custom:button-card
+                entity: this.entity_id
+                show_entity_picture: true
+                show_name: true
+                show_label: true
+                entity_picture: "[[[ return entity.attributes.entity_picture; ]]]"
+                name: "[[[ return '📍 ' + (entity.attributes.stand || '') + ' • ' + (entity.attributes.time_str || 'Capture'); ]]]"
+                label: |
+                  [[[
+                    var a = entity.attributes;
+                    var hd = a.is_hd ? '🌟 FULL HD' : ('📡 HD: ' + (a.hq_photo_status || 'Pending'));
+                    var wx = (a.temperature ? a.temperature + '°F' : '') + (a.wind_cardinal ? ' • 💨 ' + a.wind_cardinal : '');
+                    return hd + (wx ? ' • ' + wx : '');
+                  ]]]
+                tap_action:
+                  action: more-info
+                styles:
+                  card:
+                    - border-radius: 10px
+                    - padding: 0
+                    - overflow: hidden
+                    - border: 2px solid #f39c12
+                    - box-shadow: 0 0 12px rgba(243, 156, 18, 0.35)
+                    - background: var(--card-background-color, #1c1c1e)
+                    - cursor: pointer
+                  entity_picture:
+                    - width: 100%
+                    - height: 185px
+                    - object-fit: cover
+                    - background: "#000"
+                  name:
+                    - font-size: 13px
+                    - font-weight: 700
+                    - color: "#fff"
+                    - padding: 8px 10px 2px 10px
+                    - text-align: left
+                  label:
+                    - font-size: 11px
+                    - font-weight: 700
+                    - color: "#f39c12"
+                    - padding: 0px 10px 8px 10px
+                    - text-align: left

@@ -149,14 +149,20 @@ def extract_hd_info(c: Dict[str, Any]) -> tuple[bool, Optional[str]]:
     if not isinstance(c, dict):
         return False, None
     hd_url = (
-        c.get("hdImageUrl")
+        c.get("hqImageUrl")
+        or (c.get("hqImageUrls")[0] if (c.get("hqImageUrls") and isinstance(c.get("hqImageUrls"), list)) else None)
+        or c.get("hdImageUrl")
         or (c.get("hdImageUrls")[0] if (c.get("hdImageUrls") and isinstance(c.get("hdImageUrls"), list)) else None)
         or c.get("highResImageUrl")
         or c.get("originalImageUrl")
         or c.get("hiResUrl")
     )
+    if hd_url == "":
+        hd_url = None
+    hq_status = str(c.get("hqPhotoStatus") or "")
     is_hd = bool(
-        c.get("isHd")
+        hq_status == "Completed"
+        or c.get("isHd")
         or c.get("hasHd")
         or c.get("isHdDownloaded")
         or c.get("isHiRes")
@@ -293,23 +299,43 @@ class StealthCamClient:
             _LOGGER.warning("Failed fetching recent captures: %s", ex)
             return []
 
-    def request_hd_photo(self, image_guid: str) -> bool:
-        """Request full-resolution HD photo upload for a specific capture."""
+    def request_hd_photo(self, image_guid: str, device_id: Optional[int] = None, cancel: bool = False) -> bool:
+        """Request (or cancel) full-resolution HQ/HD photo upload for a specific capture."""
         self.ensure_auth()
-        endpoints = [
-            f"{self.base_url}/api/v6/file-manager/images/{image_guid}/request-hd",
-            f"{self.base_url}/api/v1/file-manager/images/{image_guid}/hd-request",
-            f"{self.base_url}/api/v1/file-manager/images/request-hd",
-        ]
+        action = "cancel" if cancel else "request"
+        endpoints = []
+        if device_id:
+            endpoints.append(f"{self.base_url}/api/v1/file-manager/images/{image_guid}/{device_id}/hq/{action}")
+        endpoints.append(f"{self.base_url}/api/v1/file-manager/images/{image_guid}/hq/{action}")
+
         for url in endpoints:
             try:
-                res = self.session.post(url, json={"imageGuid": image_guid}, timeout=self.timeout)
+                res = self.session.patch(url, timeout=self.timeout)
                 if res.status_code in (200, 201, 204):
-                    _LOGGER.info("Successfully requested HD photo for GUID %s", image_guid)
+                    _LOGGER.info("Successfully sent HQ photo %s for GUID %s (device %s)", action, image_guid, device_id)
+                    return True
+                if res.status_code == 400 and "HqImageAlreadyRequested" in res.text:
+                    _LOGGER.info("HQ photo already requested for GUID %s", image_guid)
                     return True
             except Exception as ex:
-                _LOGGER.warning("Attempt to request HD via %s failed: %s", url, ex)
+                _LOGGER.warning("Attempt to %s HQ photo via %s failed: %s", action, url, ex)
         return False
+
+    def get_image_details(self, image_guid: str, device_id: Optional[int] = None) -> Dict[str, Any]:
+        """Fetch full V3 image metadata (temp, wind, pressure, moon phase, bounding boxes, HQ status)."""
+        self.ensure_auth()
+        urls = []
+        if device_id:
+            urls.append(f"{self.base_url}/api/v3/file-manager/images/{image_guid}/{device_id}")
+        urls.append(f"{self.base_url}/api/v3/file-manager/images/{image_guid}")
+        for url in urls:
+            try:
+                res = self.session.get(url, timeout=self.timeout)
+                if res.status_code == 200:
+                    return res.json()
+            except Exception as ex:
+                _LOGGER.debug("Failed fetching v3 image details for %s: %s", image_guid, ex)
+        return {}
 
     def fetch_cloud_tags(self) -> Dict[str, str]:
         """Fetch all species tags from the Command Cloud and map image GUIDs to tag names."""
@@ -420,6 +446,9 @@ class StealthCamClient:
             if dev_captures:
                 last_hit_dt = dev_captures[0].get("createdDateTime") or dev_captures[0].get("uploadedTime")
 
+            buck_sightings: List[Dict[str, Any]] = []
+            current_buck_sighting: Optional[Dict[str, Any]] = None
+
             prev_tag: Optional[str] = None
             for c in dev_captures:
                 tag = extract_species_tag(c, active_tags)
@@ -433,6 +462,23 @@ class StealthCamClient:
                     raw_buck_photos_count += 1
                     if is_new_consecutive_run:
                         buck_hits_count += 1
+                        first_guid = c.get("imageGuid") or c.get("guid") or ""
+                        current_buck_sighting = {
+                            "sighting_id": f"{dev_id}_{first_guid}",
+                            "camera_name": name,
+                            "device_id": dev_id,
+                            "pdi": pdi,
+                            "hero_guid": first_guid,
+                            "created_at": c.get("createdDateTime") or c.get("uploadedTime"),
+                            "captures": [c],
+                            "guids": [first_guid] if first_guid else [],
+                        }
+                        buck_sightings.append(current_buck_sighting)
+                    elif current_buck_sighting is not None:
+                        current_buck_sighting["captures"].append(c)
+                        g = c.get("imageGuid") or c.get("guid")
+                        if g:
+                            current_buck_sighting["guids"].append(g)
                 elif is_doe:
                     raw_doe_photos_count += 1
                     if is_new_consecutive_run:
@@ -544,6 +590,9 @@ class StealthCamClient:
                     "image_url": hd_url if (is_hd and hd_url) else (img_urls[0] if img_urls else None),
                     "thumb_url": thumb_urls[0] if thumb_urls else (img_urls[0] if img_urls else None),
                     "time_str": time_str,
+                    "created_at": cdt,
+                    "device_id": dev_id,
+                    "hq_photo_status": c.get("hqPhotoStatus", "NotRequested"),
                     "tag": tag,
                     "is_buck": is_buck,
                     "is_doe": is_doe,
@@ -626,6 +675,7 @@ class StealthCamClient:
                 "peak_window_24h": peak_window_24h,
                 "recent_photos": recent_photos,
                 "buck_photos": buck_photos,
+                "buck_sightings": buck_sightings,
                 "doe_photos": doe_photos,
                 "person_photos": person_photos,
             }

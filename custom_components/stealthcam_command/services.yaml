@@ -84,3 +84,90 @@ request_hd:
 sync_now:
   name: Sync Telemetry
   description: Immediately trigger a cloud refresh of camera telemetry, weather, and photos.
+
+name_buck:
+  name: Name / Update Profiled Buck
+  description: Rename an identified buck profile and optionally update its rack points or antler notes.
+  fields:
+    buck_id:
+      name: Buck ID or Current Name
+      description: The buck_id (e.g. buck_licking_branch_8) or current name of the buck.
+      required: true
+      example: "buck_licking_branch_8"
+      selector:
+        text:
+    name:
+      name: New Buck Name
+      description: Custom name for the buck (e.g. Goliath, Wide 8, Licking Branch 8).
+      required: true
+      example: "Goliath"
+      selector:
+        text:
+    points:
+      name: Antler Points / Frame
+      description: Optional rack score/points (e.g. 10-PT (5x5), 8-PT (4x4)).
+      required: false
+      example: "8-PT (4x4)"
+      selector:
+        text:
+    antler_notes:
+      name: Antler & Physical Notes
+      description: Distinguishing traits (tine length, crab-claw, spread, body maturity).
+      required: false
+      example: "Wide 4x4 outside ears, tall G2s, uses MAGGIE -> HOMER ridge."
+      selector:
+        text:
+
+assign_buck_sighting:
+  name: Assign Sighting to Buck Profile
+  description: Assign a buck photo GUID or sighting burst to an existing or new named buck profile.
+  fields:
+    guid:
+      name: Photo GUID or Sighting ID
+      description: Any image GUID from the buck sighting burst.
+      required: true
+      example: "01a17bd3-b350-7736-8e74-5b5ba28bac73"
+      selector:
+        text:
+    buck_name:
+      name: Target Buck Name
+      description: Name of the buck to assign this sighting to (creates a new buck profile if it does not exist).
+      required: true
+      example: "Licking Branch 8"
+      selector:
+        text:
+    points:
+      name: Antler Points
+      description: Optional points classification (e.g. 8-PT (4x4)).
+      required: false
+      example: "8-PT (4x4)"
+      selector:
+        text:
+    antler_notes:
+      name: Antler Notes
+      description: Optional notes on this sighting.
+      required: false
+      selector:
+        text:
+
+configure_ai_profiler:
+  name: Configure AI Vision Buck Profiler
+  description: Set the Gemini or OpenAI API key used for automated multi-image buck antler profiling and matching.
+  fields:
+    provider:
+      name: AI Vision Provider
+      description: Choose Gemini (gemini-2.5-flash) or OpenAI (gpt-4o).
+      required: true
+      default: "gemini"
+      selector:
+        select:
+          options:
+            - "gemini"
+            - "openai"
+    api_key:
+      name: API Key
+      description: Google Gemini API Key or OpenAI API Key.
+      required: true
+      selector:
+        text:
+

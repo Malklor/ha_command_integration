@@ -1,6 +1,7 @@
 """Camera platform for Stealth Cam Command integration."""
 from collections import OrderedDict
 import logging
+import os
 from typing import Any, Dict, Optional
 import requests
 
@@ -59,6 +60,10 @@ async def async_setup_entry(
         entities.append(StealthCamLatestPhotoCamera(coordinator, name, pdi))
         for idx in range(36):
             entities.append(StealthCamCapturePhotoCamera(coordinator, name, pdi, idx))
+
+    # Create 8 Target Buck Profile Camera slots served from /media/stealthcam_bucks/
+    for idx in range(8):
+        entities.append(StealthCamProfiledBuckCamera(coordinator, idx))
 
     async_add_entities(entities)
 
@@ -223,6 +228,12 @@ class StealthCamCapturePhotoCamera(CoordinatorEntity, Camera):
             "is_doe": is_doe,
             "is_person": is_person,
             "buck_score": p.get("buck_score"),
+            "buck_id": p.get("buck_id"),
+            "buck_name": p.get("buck_name"),
+            "buck_points": p.get("buck_points"),
+            "buck_age": p.get("buck_age"),
+            "sighting_id": p.get("sighting_id"),
+            "hq_photo_status": p.get("hq_photo_status", "NotRequested"),
             "is_hd": p.get("is_hd", False),
             "hour": p.get("hour", 0),
             "index": self.index + 1,
@@ -233,6 +244,107 @@ class StealthCamCapturePhotoCamera(CoordinatorEntity, Camera):
         self, width: Optional[int] = None, height: Optional[int] = None
     ) -> Optional[bytes]:
         """Return bytes of this specific capture."""
-        url = self.photo_data.get("thumb_url") or self.photo_data.get("image_url")
         guid = self.photo_data.get("guid")
+        if guid:
+            media_dir = getattr(self.coordinator.buck_tracker, "media_dir", "/media/stealthcam_bucks")
+            for candidate in (f"{guid}_hd.jpg", f"{guid}.jpg"):
+                local_file = os.path.join(media_dir, candidate)
+                if os.path.exists(local_file):
+                    try:
+                        with open(local_file, "rb") as f:
+                            return f.read()
+                    except Exception:
+                        pass
+        url = self.photo_data.get("thumb_url") or self.photo_data.get("image_url")
         return fetch_and_cache_image(url, guid=guid)
+
+
+class StealthCamProfiledBuckCamera(CoordinatorEntity, Camera):
+    """Camera entity serving the permanent `/media/stealthcam_bucks/` hero portrait and analytics for a profiled buck."""
+
+    _attr_icon = "mdi:deer"
+
+    def __init__(
+        self,
+        coordinator: StealthCamDataUpdateCoordinator,
+        index: int,
+    ) -> None:
+        """Initialize profiled buck camera slot."""
+        CoordinatorEntity.__init__(self, coordinator)
+        Camera.__init__(self)
+        self.index = index
+        self._attr_unique_id = f"stealthcam_buck_profile_{index + 1}"
+        self._attr_name = f"StealthCam Buck Profile {index + 1}"
+
+    @property
+    def buck_data(self) -> Dict[str, Any]:
+        """Return buck profile dictionary for this slot."""
+        reg = getattr(self.coordinator, "buck_registry_data", {}) or {}
+        bucks = reg.get("bucks", [])
+        if self.index < len(bucks):
+            return bucks[self.index]
+        return {}
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if this buck profile slot is populated."""
+        return bool(self.buck_data.get("buck_id"))
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return full buck dossier and movement telemetry."""
+        b = self.buck_data
+        if not b:
+            return {"active": False, "slot": self.index + 1}
+        return {
+            "active": True,
+            "slot": self.index + 1,
+            "buck_id": b.get("buck_id"),
+            "buck_name": b.get("name"),
+            "points": b.get("points"),
+            "beam_spread": b.get("beam_spread"),
+            "age_estimate": b.get("age_estimate"),
+            "antler_notes": b.get("antler_notes"),
+            "sightings_count": b.get("sightings_count", 0),
+            "total_photos_count": b.get("total_photos_count", 0),
+            "last_seen_formatted": b.get("last_seen_formatted"),
+            "last_seen_stand": b.get("last_seen_stand"),
+            "last_seen_temp": b.get("last_seen_temp"),
+            "last_seen_pressure": b.get("last_seen_pressure"),
+            "last_seen_pressure_tendency": b.get("last_seen_pressure_tendency"),
+            "last_seen_wind": b.get("last_seen_wind"),
+            "last_seen_moon": b.get("last_seen_moon"),
+            "first_seen_formatted": b.get("first_seen_formatted"),
+            "favorite_stand": b.get("favorite_stand"),
+            "stand_breakdown": b.get("stand_breakdown", {}),
+            "preferred_window": b.get("preferred_window"),
+            "window_breakdown": b.get("window_breakdown", {}),
+            "daylight_pct": b.get("daylight_pct", 0),
+            "avg_temp": b.get("avg_temp"),
+            "avg_pressure": b.get("avg_pressure"),
+            "preferred_wind": b.get("preferred_wind"),
+            "travel_corridors": b.get("travel_corridors", []),
+            "hero_guid": b.get("hero_guid"),
+            "hero_local_path": b.get("hero_local_path"),
+            "hero_media_source": b.get("hero_media_source"),
+            "hero_is_hd": b.get("hero_is_hd", False),
+            "movement_log": b.get("movement_log", []),
+            "gallery": b.get("gallery", []),
+        }
+
+    def camera_image(
+        self, width: Optional[int] = None, height: Optional[int] = None
+    ) -> Optional[bytes]:
+        """Return bytes of the buck's hero photo from `/media/stealthcam_bucks/` or fallback cloud URL."""
+        b = self.buck_data
+        if not b:
+            return None
+        local_path = b.get("hero_local_path")
+        if local_path and os.path.exists(local_path):
+            try:
+                with open(local_path, "rb") as f:
+                    return f.read()
+            except Exception as ex:
+                _LOGGER.warning("Failed reading local buck hero image %s: %s", local_path, ex)
+        return fetch_and_cache_image(b.get("hero_cloud_url"), guid=b.get("hero_guid"))
+

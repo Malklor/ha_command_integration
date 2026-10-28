@@ -80,8 +80,40 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_request_hd(call: ServiceCall):
         guid = call.data.get("guid")
         if guid:
-            await hass.async_add_executor_job(coordinator.client.request_hd_photo, guid)
+            await hass.async_add_executor_job(coordinator.buck_tracker.escalate_hd_request, guid)
             await coordinator.async_request_refresh()
+
+    async def handle_name_buck(call: ServiceCall):
+        buck_id = call.data.get("buck_id")
+        new_name = call.data.get("name")
+        points = call.data.get("points")
+        antler_notes = call.data.get("antler_notes")
+        if buck_id and new_name:
+            await hass.async_add_executor_job(
+                coordinator.buck_tracker.rename_buck, buck_id, new_name, points, antler_notes
+            )
+            coordinator.buck_registry_data = coordinator.buck_tracker.get_summary_payload()
+            coordinator.async_set_updated_data(coordinator.data)
+
+    async def handle_assign_buck_sighting(call: ServiceCall):
+        guid = call.data.get("guid") or call.data.get("sighting_id")
+        buck_name = call.data.get("buck_name")
+        points = call.data.get("points")
+        antler_notes = call.data.get("antler_notes")
+        if guid and buck_name:
+            await hass.async_add_executor_job(
+                coordinator.buck_tracker.assign_sighting_to_buck, guid, buck_name, points, antler_notes
+            )
+            coordinator.buck_registry_data = coordinator.buck_tracker.get_summary_payload()
+            coordinator.async_set_updated_data(coordinator.data)
+
+    async def handle_configure_ai_profiler(call: ServiceCall):
+        provider = call.data.get("provider", "gemini")
+        api_key = call.data.get("api_key", "")
+        await hass.async_add_executor_job(
+            coordinator.buck_tracker.set_ai_credentials, provider, api_key
+        )
+        await coordinator.async_request_refresh()
 
     async def handle_sync_now(call: ServiceCall):
         await coordinator.async_request_refresh()
@@ -92,6 +124,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.services.async_register(DOMAIN, "tag_photo", handle_tag_photo)
     hass.services.async_register(DOMAIN, "toggle_buck", handle_tag_buck)
     hass.services.async_register(DOMAIN, "request_hd", handle_request_hd)
+    hass.services.async_register(DOMAIN, "name_buck", handle_name_buck)
+    hass.services.async_register(DOMAIN, "assign_buck_sighting", handle_assign_buck_sighting)
+    hass.services.async_register(DOMAIN, "configure_ai_profiler", handle_configure_ai_profiler)
     hass.services.async_register(DOMAIN, "sync_now", handle_sync_now)
 
     async def async_state_change_listener(event: Event):

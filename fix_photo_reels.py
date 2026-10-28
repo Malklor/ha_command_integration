@@ -185,9 +185,11 @@ def build_dynamic_photo_card(slug: str, idx: int):
                   var e = states['{photo_entity}'];
                   if (!e || !e.attributes) return '';
                   var tag = e.attributes.tag || '';
-                  var score = e.attributes.buck_score ? (' (' + e.attributes.buck_score + (String(e.attributes.buck_score).includes('PT') ? '' : '\"') + ')') : '';
-                  var hd = e.attributes.is_hd ? ' 💎 HD' : '';
-                  if (e.attributes.is_buck || tag === 'buck') return '✨ VERIFIED BUCK' + score + hd;
+                  var bname = e.attributes.buck_name ? ('🦌 ' + e.attributes.buck_name) : '✨ VERIFIED BUCK';
+                  var score = e.attributes.buck_points ? (' (' + e.attributes.buck_points + ')') : (e.attributes.buck_score ? (' (' + e.attributes.buck_score + (String(e.attributes.buck_score).includes('PT') ? '' : '\"') + ')') : '');
+                  var hq = e.attributes.hq_photo_status === 'Pending' ? ' ⏳ HD Pending' : '';
+                  var hd = e.attributes.is_hd ? ' 💎 HD' : hq;
+                  if (e.attributes.is_buck || tag === 'buck') return bname + score + hd;
                   if (e.attributes.is_doe || tag === 'doe') return '🦌 VERIFIED DOE' + hd;
                   if (e.attributes.is_person || tag === 'person') return '🚨 👤 HUMAN ACTIVITY' + hd;
                   return (e.attributes.is_hd ? '💎 HD Photo • Tap to View' : '🔍 Tap for Photo');
@@ -511,6 +513,120 @@ def build_stand_subview(cam: dict):
     }
 
 
+def build_buck_dossier_card(slot_idx: int):
+    cam_ent = f"camera.stealthcam_buck_profile_{slot_idx + 1}"
+    return {
+        "type": "custom:vertical-stack-in-card",
+        "card_mod": {
+            "style": f"""
+                :host, ha-card {{
+                  border-radius: 14px !important;
+                  overflow: hidden !important;
+                  border: 2px solid #f39c12 !important;
+                  box-shadow: 0 4px 16px rgba(243, 156, 18, 0.3) !important;
+                  {{% if not state_attr('{cam_ent}', 'active') %}}
+                  display: none !important;
+                  {{% endif %}}
+                }}
+            """
+        },
+        "cards": [
+            {
+                "type": "custom:button-card",
+                "entity": cam_ent,
+                "triggers_update": [cam_ent, "sensor.stealthcam_buck_profiles"],
+                "show_entity_picture": True,
+                "show_name": True,
+                "show_label": True,
+                "entity_picture": f"[[[ var e = states['{cam_ent}']; return (e && e.attributes && e.attributes.entity_picture) ? e.attributes.entity_picture : ''; ]]]",
+                "name": f"[[[ var e = states['{cam_ent}']; return (e && e.attributes && e.attributes.buck_name) ? ('🦌 ' + e.attributes.buck_name + ' • ' + (e.attributes.points || '')) : 'Profiled Buck'; ]]]",
+                "label": f"[[[ var e = states['{cam_ent}']; if (!e || !e.attributes || !e.attributes.active) return ''; return '📍 Last Seen: ' + (e.attributes.last_seen_stand || '') + ' (' + (e.attributes.last_seen_formatted || '') + ') • ' + (e.attributes.sightings_count || 0) + ' Sightings (' + (e.attributes.total_photos_count || 0) + ' Photos)'; ]]]",
+                "tap_action": {"action": "more-info"},
+                "styles": {
+                    "card": [
+                        {"padding": "0"},
+                        {"background": "var(--card-background-color, #1c1c1e)"},
+                        {"border": "none"},
+                        {"display": f"[[[ var e = states['{cam_ent}']; return (e && e.attributes && e.attributes.active) ? 'block' : 'none'; ]]]"},
+                    ],
+                    "entity_picture": [
+                        {"width": "100%"},
+                        {"height": "220px"},
+                        {"object-fit": "cover"},
+                        {"background": "#000"},
+                    ],
+                    "name": [
+                        {"font-size": "16px"},
+                        {"font-weight": "800"},
+                        {"color": "#f39c12"},
+                        {"padding": "10px 12px 2px 12px"},
+                        {"text-align": "left"},
+                    ],
+                    "label": [
+                        {"font-size": "12px"},
+                        {"font-weight": "600"},
+                        {"color": "#e0e0e0"},
+                        {"padding": "0px 12px 8px 12px"},
+                        {"text-align": "left"},
+                    ],
+                },
+            },
+            {
+                "type": "markdown",
+                "content": (
+                    f"{{% if state_attr('{cam_ent}', 'active') %}}\n"
+                    f"- **Rack & Age:** `{{{{ state_attr('{cam_ent}', 'points') }}}}` • Spread: `{{{{ state_attr('{cam_ent}', 'beam_spread') }}}}` • Age: `{{{{ state_attr('{cam_ent}', 'age_estimate') }}}}`\n"
+                    f"- **Profile Notes:** {{ state_attr('{cam_ent}', 'antler_notes') }}\n"
+                    f"- **Last Conditions:** `{{{{ state_attr('{cam_ent}', 'last_seen_temp') }}}}°F` • `{{{{ state_attr('{cam_ent}', 'last_seen_pressure') }}}} inHg ({{{{ state_attr('{cam_ent}', 'last_seen_pressure_tendency') }}}})` • Wind: `{{{{ state_attr('{cam_ent}', 'last_seen_wind') }}}}` • Moon: `{{{{ state_attr('{cam_ent}', 'last_seen_moon') }}}}`\n"
+                    f"- **Favorite Stand:** `{{{{ state_attr('{cam_ent}', 'favorite_stand') }}}}` • **Preferred Window:** `{{{{ state_attr('{cam_ent}', 'preferred_window') }}}}` (`{{{{ state_attr('{cam_ent}', 'daylight_pct') }}}}% Daylight`)\n"
+                    f"{{% set corridors = state_attr('{cam_ent}', 'travel_corridors') or [] %}}\n"
+                    f"{{% if corridors | length > 0 %}}\n"
+                    f"- 🧭 **Verified Travel Route:** `{{{{ corridors | join(' • ') }}}}`\n"
+                    f"{{% endif %}}\n"
+                    f"- **Sighting History:**\n"
+                    f"{{% for m in (state_attr('{cam_ent}', 'movement_log') or [])[:5] %}}\n"
+                    f"  - `{{{{ m.time_formatted }}}}` at **{{{{ m.stand }}}}** ({{{{ m.burst_count }}}} photos, {{{{ m.temperature }}}}°F, {{{{ m.wind }}}}, HD: `{{{{ m.hd_status }}}}`)\n"
+                    f"{{% endfor %}}\n"
+                    f"{{% endif %}}"
+                ),
+            },
+        ],
+    }
+
+
+def build_buck_hit_list_section():
+    return {
+        "type": "vertical-stack",
+        "cards": [
+            {
+                "type": "markdown",
+                "title": "🦌 Target Buck Hit-List & Movement Dossiers",
+                "content": (
+                    "**{{ states('sensor.stealthcam_buck_profiles') }}**  •  "
+                    "📁 **Vault:** `{{ state_attr('sensor.stealthcam_buck_profiles', 'media_directory') }}`  •  "
+                    "💎 **HD Queue:** `{{ state_attr('sensor.stealthcam_buck_profiles', 'hd_pending_count') }} Pending / {{ state_attr('sensor.stealthcam_buck_profiles', 'hd_completed_count') }} Completed`\n\n"
+                    "*All buck burst photos are automatically archived to `/media/stealthcam_bucks/` (accessible in HA Media Browser) with iterative HD photo requests and antler profiling. Use `stealthcam_command.name_buck` or `stealthcam_command.assign_buck_sighting` in Developer Tools → Actions to rename or reassign any buck.*"
+                ),
+            },
+            {
+                "type": "custom:layout-card",
+                "layout_type": "custom:grid-layout",
+                "layout": {
+                    "grid-template-columns": "repeat(2, 1fr)",
+                    "grid-gap": "14px",
+                    "margin": "0px",
+                    "mediaquery": {
+                        "(max-width: 950px)": {
+                            "grid-template-columns": "100%",
+                        }
+                    },
+                },
+                "cards": [build_buck_dossier_card(i) for i in range(8)],
+            },
+        ],
+    }
+
+
 async def main():
     print("Connecting to Home Assistant WebSocket...")
     async with websockets.connect(HA_WS, max_size=25 * 1024 * 1024) as ws:
@@ -552,6 +668,16 @@ async def main():
                             first_card = subcards[0]
                             if "camera.stealth_cam_" in first_card.get("entity", ""):
                                 first_card["entity_picture"] = "[[[ return entity.attributes.entity_picture || entity.attributes.thumbnail_url || entity.attributes.image_url; ]]]"
+                # Remove old buck hit-list section if present and append fresh one
+                v["cards"] = [
+                    c for c in v.get("cards", [])
+                    if not (
+                        c.get("type") == "vertical-stack"
+                        and c.get("cards")
+                        and "Target Buck Hit-List" in str(c["cards"][0].get("title", ""))
+                    )
+                ]
+                v["cards"].append(build_buck_hit_list_section())
             if path.startswith("stand-"):
                 slug = path.replace("stand-", "")
                 if slug in subview_map:

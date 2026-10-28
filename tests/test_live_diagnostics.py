@@ -17,6 +17,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO_ROOT, "custom_components", "stealthcam_command"))
 
 from stealthcam_api.client import StealthCamClient, extract_species_tag, extract_buck_score, extract_hd_info
+from buck_tracker import StealthCamBuckTracker
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 _LOGGER = logging.getLogger("diagnostics")
@@ -89,7 +90,81 @@ def test_consecutive_photo_deduplication():
     assert homer["doe_hits_count"] == 1, f"Expected 1 deduplicated doe hit, got {homer['doe_hits_count']}"
     assert homer["doe_hits_24h"] == 1, f"Expected 1 deduplicated 24h doe hit, got {homer['doe_hits_24h']}"
     assert homer["raw_doe_photos_count"] == 5, f"Expected 5 raw doe photos, got {homer['raw_doe_photos_count']}"
+    assert len(homer["buck_sightings"]) == 2, f"Expected 2 buck_sightings objects, got {len(homer['buck_sightings'])}"
     print("   ✅ Consecutive photo deduplication unit tests passed (5 consecutive bucks -> 1 hit, 5 consecutive does -> 1 hit)!\n")
+
+
+def test_buck_tracker_and_iterative_hd():
+    """Unit test for StealthCamBuckTracker, /media archiving, iterative HD escalation, and buck renaming."""
+    import tempfile
+    import shutil
+
+    print("0b. Running Unit Tests for Buck Tracker & Iterative HD Escalation...")
+    tmp_dir = tempfile.mkdtemp(prefix="stealthcam_test_")
+    try:
+        client = StealthCamClient("test@example.com", "secret")
+        requested_hd = []
+        client.request_hd_photo = lambda guid, dev_id=None, cancel=False: (requested_hd.append((guid, dev_id)) or True)
+        client.get_image_details = lambda guid, dev_id=None: {
+            "createdDateTime": "2026-10-27T00:27:14-05:00",
+            "temperature": 48.0,
+            "pressure": 30.05,
+            "pressureTendency": "Rising",
+            "wind": 5.0,
+            "windDirection": 225.0,
+            "moonPhase": "FullMoon",
+            "hqPhotoStatus": "NotRequested",
+        }
+
+        tracker = StealthCamBuckTracker(
+            client=client,
+            media_dir=os.path.join(tmp_dir, "media_bucks"),
+            profiles_file=os.path.join(tmp_dir, "profiles.json"),
+        )
+        tracker._download_to_media = lambda url, fname, force=False: os.path.join(tmp_dir, "media_bucks", fname)
+
+        # Simulate a 3-photo consecutive buck burst with low-confidence initial frame
+        mock_cam_data = {
+            "MAGGIE": {
+                "buck_sightings": [
+                    {
+                        "sighting_id": "101_guid_frame_1",
+                        "camera_name": "MAGGIE",
+                        "device_id": 101,
+                        "pdi": "PDI_101",
+                        "hero_guid": "guid_frame_1",
+                        "created_at": "2026-10-27T00:27:14-05:00",
+                        "guids": ["guid_frame_1", "guid_frame_2", "guid_frame_3"],
+                        "captures": [
+                            {"imageGuid": "guid_frame_1", "hqPhotoStatus": "NotRequested", "imageUrls": ["http://example/1.jpg"]},
+                            {"imageGuid": "guid_frame_2", "hqPhotoStatus": "NotRequested", "imageUrls": ["http://example/2.jpg"]},
+                            {"imageGuid": "guid_frame_3", "hqPhotoStatus": "NotRequested", "imageUrls": ["http://example/3.jpg"]},
+                        ],
+                    }
+                ],
+                "recent_photos": [{"guid": "guid_frame_1"}],
+            }
+        }
+
+        # Step 1: Initial ingestion requests HD only for Frame #1 (guid_frame_1)
+        summary = tracker.process_camera_data(mock_cam_data)
+        assert len(requested_hd) == 1 and requested_hd[0][0] == "guid_frame_1", f"Expected HD request only on frame 1, got {requested_hd}"
+        assert summary["unique_bucks_count"] == 1
+
+        # Step 2: Simulate Frame #1 HD failing (or low confidence after HD) -> should automatically escalate to Frame #2!
+        mock_cam_data["MAGGIE"]["buck_sightings"][0]["captures"][0]["hqPhotoStatus"] = "Failed"
+        summary2 = tracker.process_camera_data(mock_cam_data)
+        assert len(requested_hd) == 2 and requested_hd[1][0] == "guid_frame_2", f"Expected iterative escalation to frame 2, got {requested_hd}"
+
+        # Step 3: Test renaming the buck profile
+        buck_id = summary2["bucks"][0]["buck_id"]
+        assert tracker.rename_buck(buck_id, "Goliath 10", points="10-PT (5x5)", antler_notes="Tall G2s")
+        summary3 = tracker.get_summary_payload()
+        assert summary3["bucks"][0]["name"] == "Goliath 10"
+        assert summary3["bucks"][0]["points"] == "10-PT (5x5)"
+        print("   ✅ Buck Tracker & Iterative HD Escalation unit tests passed (Frame #1 -> Frame #2 escalation + Buck Renaming)!\n")
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def run_diagnostics():
@@ -98,6 +173,7 @@ def run_diagnostics():
     print("  Stealth Cam Command - Tier 1 Live Diagnostic Test Suite")
     print("=================================================================")
     test_consecutive_photo_deduplication()
+    test_buck_tracker_and_iterative_hd()
     start_time = time.time()
     env = load_credentials()
     email = env.get("username") or env.get("stealthcam_email") or os.environ.get("STEALTHCAM_EMAIL")

@@ -61,6 +61,7 @@ async def async_setup_entry(
     entities.append(StealthCamLastCloudSyncSensor(coordinator))
     entities.append(StealthCamPredictiveHuntForecastSensor(coordinator))
     entities.append(StealthCamEnvironmentalMatrixSensor(coordinator))
+    entities.append(StealthCamBuckProfilesSensor(coordinator))
 
     async_add_entities(entities)
 
@@ -740,5 +741,37 @@ class StealthCamLastCloudSyncSensor(CoordinatorEntity, SensorEntity):
             "total_photos_indexed": total_photos,
             "status": "Healthy (Connected)",
         }
+
+
+class StealthCamBuckProfilesSensor(CoordinatorEntity, SensorEntity):
+    """Master Buck Hit-List & Movement Dossiers sensor."""
+
+    _attr_icon = "mdi:deer"
+    _attr_name = "StealthCam Buck Profiles"
+    _attr_unique_id = "stealthcam_buck_profiles"
+
+    def __init__(self, coordinator: StealthCamDataUpdateCoordinator) -> None:
+        super().__init__(coordinator)
+
+    @property
+    def native_value(self) -> str:
+        reg = getattr(self.coordinator, "buck_registry_data", {}) or {}
+        u_count = reg.get("unique_bucks_count", 0)
+        s_count = reg.get("total_buck_sightings", 0)
+        return f"{u_count} Unique Bucks ({s_count} Sightings)"
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        reg = getattr(self.coordinator, "buck_registry_data", {}) or {}
+        return {
+            "unique_bucks_count": reg.get("unique_bucks_count", 0),
+            "total_buck_sightings": reg.get("total_buck_sightings", 0),
+            "media_directory": reg.get("media_directory", "/media/stealthcam_bucks"),
+            "hd_pending_count": reg.get("hd_pending_count", 0),
+            "hd_completed_count": reg.get("hd_completed_count", 0),
+            "bucks": reg.get("bucks", []),
+            "recent_sightings": reg.get("recent_sightings", []),
+        }
+
 
 

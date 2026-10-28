@@ -9,18 +9,18 @@ subview: true
 icon: mdi:deer
 type: custom:grid-layout
 layout:
-  grid-template-columns: 400px 1fr
+  grid-template-columns: 460px 1fr
   grid-gap: 16px
   mediaquery:
-    "(max-width: 950px)":
+    "(max-width: 1000px)":
       grid-template-columns: 100%
 cards:
   # ============================================================================
-  # Left Column: Navigation, Antler Profile, Behavior Breakdown & Sighting Log
+  # Left Column: Hero Scorecard, Tactical Hunt Prescription, SVG Corridor Map & Live Map
   # ============================================================================
   - type: vertical-stack
     cards:
-      # 1. Navigation & Buck Identity Card
+      # 1. Navigation, Hero Portrait & Antler / Morphological Scorecard Table
       - type: custom:vertical-stack-in-card
         cards:
           - type: custom:button-card
@@ -58,14 +58,65 @@ cards:
             content: |
               {% set a = states.camera.stealthcam_buck_profile_<slot>.attributes if states.camera.stealthcam_buck_profile_<slot> is defined else {} %}
               ## 🦌 {{ a.get('buck_name', 'Buck Profile') }} — <span style="color: #f39c12;">{{ a.get('points', 'Unknown') }}</span>
-              - 📐 **Beam Spread:** `{{ a.get('beam_spread', 'Unknown') }}`  •  🎂 **Est. Age:** `{{ a.get('age_estimate', 'Unknown') }}`
-              - 📍 **Last Seen:** <b style="color: #2ecc71;">{{ a.get('last_seen_formatted', 'N/A') }}</b> at **{{ a.get('last_seen_stand', 'N/A') }}**
-              - 🗺️ **GPS Location:** `{{ a.get('latitude') }}, {{ a.get('longitude') }}` (`{{ a.get('heading', 'N/A') }}`)
-              - 🗓️ **First Sighting:** `{{ a.get('first_seen_formatted', 'N/A') }}`
-              - 🎯 **Total Sightings:** **{{ a.get('sightings_count', 0) }} Unique Sightings** (`{{ a.get('total_photos_count', 0) }}` archived burst photos)
-              - 📝 **Antler & Physical Notes:** *{{ a.get('antler_notes', '') }}*
+              <div style="background: rgba(243, 156, 18, 0.1); border-left: 3px solid #f39c12; padding: 8px 12px; margin: 8px 0; border-radius: 4px; font-style: italic; color: #eee;">{{ a.get('antler_notes', '') }}</div>
 
-      # 2. Tactical GPS Camera Movement & Travel Corridor Vector Map (Dynamic SVG)
+              ### 🏆 Antler & Morphological Scorecard
+              <table style="width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 13px;">
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.07);">
+                  <td style="padding: 5px 6px; color: #aaa;">🦴 <b>Rack Frame:</b></td>
+                  <td style="padding: 5px 6px;"><b style="color: #f39c12;">{{ a.get('points', 'Unknown') }}</b> ({{ a.get('left_points', '?') }}L x {{ a.get('right_points', '?') }}R)</td>
+                  <td style="padding: 5px 6px; color: #aaa;">📐 <b>Spread:</b></td>
+                  <td style="padding: 5px 6px;"><b>{{ a.get('beam_spread', 'Unknown') }}</b></td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.07);">
+                  <td style="padding: 5px 6px; color: #aaa;">🎂 <b>Age Class:</b></td>
+                  <td style="padding: 5px 6px;"><b>{{ a.get('age_estimate', 'Unknown') }}</b></td>
+                  <td style="padding: 5px 6px; color: #aaa;">🤖 <b>AI Match Conf:</b></td>
+                  <td style="padding: 5px 6px;"><b style="color: #2ecc71;">{{ a.get('max_confidence', 90) }}% Peak</b> ({{ a.get('avg_confidence', 88) }}% Avg)</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.07);">
+                  <td style="padding: 5px 6px; color: #aaa;">🎯 <b>Sightings:</b></td>
+                  <td style="padding: 5px 6px;"><b style="color: #2ecc71;">{{ a.get('sightings_count', 0) }} Unique</b> ({{ a.get('total_photos_count', 0) }} pics)</td>
+                  <td style="padding: 5px 6px; color: #aaa;">📸 <b>Avg Burst:</b></td>
+                  <td style="padding: 5px 6px;"><code>{{ a.get('avg_burst_photos', 1.0) }} photos/hit</code></td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.07);">
+                  <td style="padding: 5px 6px; color: #aaa;">📍 <b>Last Seen:</b></td>
+                  <td style="padding: 5px 6px;"><code>{{ a.get('last_seen_formatted', 'N/A') }}</code></td>
+                  <td style="padding: 5px 6px; color: #aaa;">📷 <b>Last Stand:</b></td>
+                  <td style="padding: 5px 6px;"><b style="color: #f39c12;">{{ a.get('last_seen_stand', 'N/A') }}</b></td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.07);">
+                  <td style="padding: 5px 6px; color: #aaa;">🗓️ <b>First Seen:</b></td>
+                  <td style="padding: 5px 6px;"><code>{{ a.get('first_seen_formatted', 'N/A') }}</code></td>
+                  <td style="padding: 5px 6px; color: #aaa;">🌲 <b>Stands Hit:</b></td>
+                  <td style="padding: 5px 6px;"><b>{{ a.get('stands_visited_count', 1) }} of {{ a.get('total_stands_count', 6) }}</b> ({{ a.get('total_distance_yards', 0) }} yds)</td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 6px; color: #aaa;">🗺️ <b>GPS Lock:</b></td>
+                  <td colspan="3" style="padding: 5px 6px;"><code>{{ a.get('latitude') }}, {{ a.get('longitude') }}</code> • Heading: <b>{{ a.get('heading', 'N/A') }}</b></td>
+                </tr>
+              </table>
+
+      # 2. Tactical Hunt Prescription & Ambush Strategy Card
+      - type: markdown
+        title: "🎯 Tactical Hunt Prescription & Ambush Strategy"
+        content: |
+          {% set a = states.camera.stealthcam_buck_profile_<slot>.attributes if states.camera.stealthcam_buck_profile_<slot> is defined else {} %}
+          {% set hp = a.get('hunt_prescription', {}) %}
+          <div style="background: rgba(46, 204, 113, 0.14); border: 1px solid rgba(46, 204, 113, 0.45); padding: 10px 12px; border-radius: 8px; margin-bottom: 10px;">
+            <div style="font-weight: 800; color: #2ecc71; font-size: 14px; margin-bottom: 4px;">🏹 AI Hunter's Prescription:</div>
+            <div style="color: #eee; font-size: 13px; line-height: 1.5;">{{ hp.get('tactical_summary', 'Analyzing movement patterns...') }}</div>
+          </div>
+
+          - ⭐ **Primary Ambush Stand:** <b style="color: #f39c12; font-size: 14px;">{{ hp.get('recommended_stand', a.get('favorite_stand', 'N/A')) }}</b> (`{{ hp.get('stand_heading', a.get('heading', 'N/A')) }}`)
+          - ⏰ **Target Time Window:** <b style="color: #2ecc71;">{{ hp.get('best_time_window', a.get('preferred_window', 'Dawn/Dusk')) }}</b> (`{{ a.get('daylight_pct', 0) }}%` Daylight Rate)
+          - 🌡️ **Optimal Temperature Trigger:** `{{ hp.get('optimal_temp_range', '45°F – 55°F') }}`
+          - 📈 **Optimal Barometric Trigger:** `{{ hp.get('optimal_barometer', '30.00 inHg (Rising)') }}`
+          - 💨 **Preferred Wind Condition:** `{{ hp.get('preferred_wind', a.get('preferred_wind', 'Variable')) }}` (Avg `{{ a.get('avg_wind_speed', 5.0) }} mph`)
+          - 🛤️ **Primary Corridor / Staging Route:** <b style="color: #2ecc71;">{{ hp.get('corridor_ambush', 'Core Stand Area') }}</b>
+
+      # 3. Tactical GPS Camera Movement & Travel Corridor Vector Map (Dynamic SVG)
       - type: custom:button-card
         entity: camera.stealthcam_buck_profile_<slot>
         show_icon: false
@@ -105,7 +156,7 @@ cards:
                 var mx = Math.round((sx + ex) / 2 - (dy / len) * 16), my = Math.round((sy + ey) / 2 + (dx / len) * 16);
                 svg += '<path d="M ' + sx + ' ' + sy + ' Q ' + mx + ' ' + my + ' ' + ex + ' ' + ey + '" fill="none" stroke="#2ecc71" stroke-width="3" stroke-dasharray="6,4" marker-end="url(#arrowGreen)"/>';
                 var lbl = (v.distance_yards ? v.distance_yards + ' yds' : '') + (v.elapsed_label ? ' (' + v.elapsed_label + ')' : '');
-                svg += '<rect x="' + (mx - 52) + '" y="' + (my - 10) + '" width="104" height="16" rx="4" fill="rgba(0,0,0,0.82)" stroke="#2ecc71" stroke-width="1"/>';
+                svg += '<rect x="' + (mx - 54) + '" y="' + (my - 10) + '" width="108" height="16" rx="4" fill="rgba(0,0,0,0.85)" stroke="#2ecc71" stroke-width="1"/>';
                 svg += '<text x="' + mx + '" y="' + (my + 1) + '" fill="#2ecc71" font-size="9.5" font-weight="700" text-anchor="middle">' + lbl + '</text>';
               }
             });
@@ -136,82 +187,158 @@ cards:
           label:
             - width: 100%
 
-      # 3. Behavioral Breakdown & Environmental Preferences
-      - type: markdown
-        title: "🧭 Behavior & Movement Breakdown"
-        content: |
-          {% set a = states.camera.stealthcam_buck_profile_<slot>.attributes if states.camera.stealthcam_buck_profile_<slot> is defined else {} %}
-          {% set wb = a.get('window_breakdown', {}) %}
-          {% set sb = a.get('stand_breakdown', {}) %}
-          {% set corridors = a.get('travel_corridors', []) %}
-          ### ⏰ Time-of-Day Activity ({{ a.get('daylight_pct', 0) }}% Daylight)
-          - 🏆 **Preferred Window:** <b style="color: #f39c12;">{{ a.get('preferred_window', 'Night') }}</b>
-          - 🌅 **Dawn (5–9 AM):** `{{ wb.get('Dawn', 0) }} sightings`
-          - ☀️ **Midday (9 AM–5 PM):** `{{ wb.get('Midday', 0) }} sightings`
-          - 🌇 **Dusk (5–9 PM):** `{{ wb.get('Dusk', 0) }} sightings`
-          - 🌙 **Night (9 PM–5 AM):** `{{ wb.get('Night', 0) }} sightings`
-
-          ---
-
-          ### 📍 Camera Stand Frequency
-          - ⭐ **Primary Core Stand:** <b style="color: #2ecc71;">{{ a.get('favorite_stand', 'N/A') }}</b>
-          {% for st, cnt in sb.items() %}- 📷 **{{ st }}:** `{{ cnt }} sighting{{ 's' if cnt != 1 else '' }}`
-          {% endfor %}
-
-          {% if corridors | length > 0 %}
-          ---
-
-          ### 🛤️ Verified Stand-to-Stand Travel Corridors
-          {% for c in corridors %}- 🧭 <b style="color: #2ecc71;">{{ c }}</b>
-          {% endfor %}
-          {% endif %}
-
-          ---
-
-          ### 🌤️ Weather & Barometric Trigger Profile
-          - 🌡️ **Average Movement Temp:** `{{ a.get('avg_temp', 'N/A') }}°F` (Last seen at `{{ a.get('last_seen_temp', 'N/A') }}°F`)
-          - 📈 **Average Barometer:** `{{ a.get('avg_pressure', 'N/A') }} inHg` ({{ a.get('last_seen_pressure_tendency', 'Steady') }})
-          - 💨 **Preferred Wind Direction:** `{{ a.get('preferred_wind', 'Variable') }}` (Last: `{{ a.get('last_seen_wind', 'Calm') }}`)
-          - 🌔 **Last Moon Phase:** `{{ a.get('last_seen_moon', 'N/A') }}`
-
-      # 3. Last Seen GPS Map (Uses latitude & longitude on camera.stealthcam_buck_profile_<slot>)
+      # 4. Last Seen GPS Map (Uses latitude & longitude on camera.stealthcam_buck_profile_<slot>)
       - type: map
-        title: "🗺️ Last Seen Camera GPS Position"
-        default_zoom: 17
-        hours_to_show: 24
+        title: "🛰️ Live Property GPS Map"
+        default_zoom: 16
+        hours_to_show: 168
         entities:
           - camera.stealthcam_buck_profile_<slot>
 
-      # 4. Chronological Sighting History Table
+  # ============================================================================
+  # Right Column: Time-of-Day Chronogram, Stand Breakdown, Weather Matrix, Sighting Log & Photo Vault
+  # ============================================================================
+  - type: vertical-stack
+    cards:
+      # 1. Time-of-Day Chronogram & Camera Stand Visitation Breakdown
       - type: markdown
-        title: "📋 Deduplicated Sighting Log"
+        title: "⏱️ Time-of-Day Chronogram & Camera Stand Intelligence"
+        content: |
+          {% set a = states.camera.stealthcam_buck_profile_<slot>.attributes if states.camera.stealthcam_buck_profile_<slot> is defined else {} %}
+          {% set wb = a.get('window_breakdown', {}) %}
+          {% set tot_s = [a.get('sightings_count', 1), 1] | max %}
+          {% set dawn_c = wb.get('Dawn', 0) %}
+          {% set mid_c = wb.get('Midday', 0) %}
+          {% set dusk_c = wb.get('Dusk', 0) %}
+          {% set night_c = wb.get('Night', 0) %}
+          {% set dawn_p = ((dawn_c / tot_s) * 100) | round | int %}
+          {% set mid_p = ((mid_c / tot_s) * 100) | round | int %}
+          {% set dusk_p = ((dusk_c / tot_s) * 100) | round | int %}
+          {% set night_p = ((night_c / tot_s) * 100) | round | int %}
+          ### ⏰ Movement Window Distribution (`{{ a.get('daylight_pct', 0) }}%` Daylight vs `{{ 100 - (a.get('daylight_pct', 0) | int) }}%` Nocturnal)
+          <table style="width: 100%; border-collapse: collapse; margin-top: 6px; margin-bottom: 14px;">
+            <tr style="background: rgba(255,255,255,0.07); border-bottom: 1px solid rgba(255,255,255,0.15);">
+              <th style="padding: 6px 8px; text-align: left;">Time Window</th>
+              <th style="padding: 6px 8px; text-align: center;">Sightings</th>
+              <th style="padding: 6px 8px; text-align: center;">Share</th>
+              <th style="padding: 6px 8px; text-align: left; width: 45%;">Activity Distribution Bar</th>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="padding: 6px 8px;">🌅 <b>Dawn (5–9 AM)</b></td>
+              <td style="padding: 6px 8px; text-align: center;"><b>{{ dawn_c }}</b></td>
+              <td style="padding: 6px 8px; text-align: center;"><code>{{ dawn_p }}%</code></td>
+              <td style="padding: 6px 8px;"><div style="background:rgba(255,255,255,0.08);height:10px;border-radius:5px;overflow:hidden;"><div style="background:#2ecc71;width:{{ dawn_p }}%;height:100%;"></div></div></td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="padding: 6px 8px;">☀️ <b>Midday (9 AM–5 PM)</b></td>
+              <td style="padding: 6px 8px; text-align: center;"><b>{{ mid_c }}</b></td>
+              <td style="padding: 6px 8px; text-align: center;"><code>{{ mid_p }}%</code></td>
+              <td style="padding: 6px 8px;"><div style="background:rgba(255,255,255,0.08);height:10px;border-radius:5px;overflow:hidden;"><div style="background:#f1c40f;width:{{ mid_p }}%;height:100%;"></div></div></td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="padding: 6px 8px;">🌇 <b>Dusk (5–9 PM)</b></td>
+              <td style="padding: 6px 8px; text-align: center;"><b>{{ dusk_c }}</b></td>
+              <td style="padding: 6px 8px; text-align: center;"><code>{{ dusk_p }}%</code></td>
+              <td style="padding: 6px 8px;"><div style="background:rgba(255,255,255,0.08);height:10px;border-radius:5px;overflow:hidden;"><div style="background:#e67e22;width:{{ dusk_p }}%;height:100%;"></div></div></td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 8px;">🌙 <b>Night (9 PM–5 AM)</b></td>
+              <td style="padding: 6px 8px; text-align: center;"><b>{{ night_c }}</b></td>
+              <td style="padding: 6px 8px; text-align: center;"><code>{{ night_p }}%</code></td>
+              <td style="padding: 6px 8px;"><div style="background:rgba(255,255,255,0.08);height:10px;border-radius:5px;overflow:hidden;"><div style="background:#9b59b6;width:{{ night_p }}%;height:100%;"></div></div></td>
+            </tr>
+          </table>
+
+          ### 📍 Camera Stand Visitation & Dominance Breakdown
+          {% set sa = a.get('stand_analytics', []) %}
+          <table style="width: 100%; border-collapse: collapse; margin-top: 6px;">
+            <tr style="background: rgba(255,255,255,0.07); border-bottom: 1px solid rgba(255,255,255,0.15);">
+              <th style="padding: 6px 8px; text-align: left;">Camera Stand</th>
+              <th style="padding: 6px 8px; text-align: center;">Sightings</th>
+              <th style="padding: 6px 8px; text-align: center;">Share</th>
+              <th style="padding: 6px 8px; text-align: center;">Burst Photos</th>
+              <th style="padding: 6px 8px; text-align: left;">Peak Window</th>
+              <th style="padding: 6px 8px; text-align: left;">Heading</th>
+              <th style="padding: 6px 8px; text-align: left;">Last Photographed</th>
+            </tr>
+            {% for st in sa %}
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="padding: 6px 8px;">📷 <b style="color: #f39c12;">{{ st.stand }}</b></td>
+              <td style="padding: 6px 8px; text-align: center;"><b style="color: #2ecc71;">{{ st.sightings }}</b></td>
+              <td style="padding: 6px 8px; text-align: center;"><code>{{ st.pct }}%</code></td>
+              <td style="padding: 6px 8px; text-align: center;"><code>{{ st.photos }} pics</code></td>
+              <td style="padding: 6px 8px;"><b>{{ st.top_window }}</b></td>
+              <td style="padding: 6px 8px;"><code>{{ st.heading }}</code></td>
+              <td style="padding: 6px 8px;"><code>{{ st.last_seen }}</code></td>
+            </tr>
+            {% endfor %}
+          </table>
+
+      # 2. Weather, Barometric Pressure & Solunar Trigger Matrix
+      - type: markdown
+        title: "🌡️ Weather, Barometric Pressure & Solunar Trigger Matrix"
+        content: |
+          {% set a = states.camera.stealthcam_buck_profile_<slot>.attributes if states.camera.stealthcam_buck_profile_<slot> is defined else {} %}
+          {% set tb = a.get('temp_bands', {}) %}
+          {% set pt = a.get('pressure_trends', {}) %}
+          {% set wb = a.get('wind_breakdown', {}) %}
+          {% set mb = a.get('moon_breakdown', {}) %}
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+            <tr style="background: rgba(255,255,255,0.07); border-bottom: 1px solid rgba(255,255,255,0.15);">
+              <th style="padding: 7px 8px; text-align: left;">Environmental Factor</th>
+              <th style="padding: 7px 8px; text-align: left;">Observed Range / Average</th>
+              <th style="padding: 7px 8px; text-align: left;">Sighting Breakdown Across Conditions</th>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+              <td style="padding: 7px 8px;">🌡️ <b>Field Temperature</b></td>
+              <td style="padding: 7px 8px;">Avg: <b style="color: #f39c12;">{{ a.get('avg_temp', 'N/A') }}°F</b><br><small style="color: #aaa;">Min: {{ a.get('min_temp', 'N/A') }}°F • Max: {{ a.get('max_temp', 'N/A') }}°F</small></td>
+              <td style="padding: 7px 8px; font-size: 12px;">❄️ <b>&lt;45°F:</b> `{{ tb.get('<45°F', 0) }}`  •  🔥 <b>45–55°F:</b> `{{ tb.get('45-55°F', 0) }}`  •  ⛅ <b>55–65°F:</b> `{{ tb.get('55-65°F', 0) }}`  •  ☀️ <b>&gt;65°F:</b> `{{ tb.get('>65°F', 0) }}`</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+              <td style="padding: 7px 8px;">📈 <b>Barometric Pressure</b></td>
+              <td style="padding: 7px 8px;">Avg: <b style="color: #2ecc71;">{{ a.get('avg_pressure', 'N/A') }} inHg</b><br><small style="color: #aaa;">Min: {{ a.get('min_pressure', 'N/A') }} • Max: {{ a.get('max_pressure', 'N/A') }}</small></td>
+              <td style="padding: 7px 8px; font-size: 12px;">⬆️ <b>Rising:</b> `{{ pt.get('Rising', 0) }}`  •  ➡️ <b>Steady:</b> `{{ pt.get('Steady', 0) }}`  •  ⬇️ <b>Falling:</b> `{{ pt.get('Falling', 0) }}`</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+              <td style="padding: 7px 8px;">💨 <b>Wind Speed & Bearing</b></td>
+              <td style="padding: 7px 8px;">Favored: <b style="color: #3498db;">{{ a.get('preferred_wind', 'Variable') }}</b><br><small style="color: #aaa;">Avg Speed: {{ a.get('avg_wind_speed', 'N/A') }} mph</small></td>
+              <td style="padding: 7px 8px; font-size: 12px;">{% for wdir, wcnt in wb.items() %}🧭 <b>{{ wdir }}:</b> `{{ wcnt }}`  {% endfor %}</td>
+            </tr>
+            <tr>
+              <td style="padding: 7px 8px;">🌔 <b>Lunar / Moon Phase</b></td>
+              <td style="padding: 7px 8px;">Last Seen:<br><b style="color: #f39c12;">{{ a.get('last_seen_moon', 'N/A') }}</b></td>
+              <td style="padding: 7px 8px; font-size: 12px;">{% for mp, mcnt in mb.items() %}🌕 <b>{{ mp }}:</b> `{{ mcnt }}`  {% endfor %}</td>
+            </tr>
+          </table>
+
+      # 3. Complete Deduplicated Sighting & Telemetry Log
+      - type: markdown
+        title: "📋 Complete Deduplicated Sighting & Telemetry Log"
         content: |
           {% set a = states.camera.stealthcam_buck_profile_<slot>.attributes if states.camera.stealthcam_buck_profile_<slot> is defined else {} %}
           {% set logs = a.get('movement_log', []) %}
           <table style="width: 100%; border-collapse: collapse; margin-top: 6px;">
             <tr style="background: rgba(255, 255, 255, 0.08); border-bottom: 1px solid rgba(255, 255, 255, 0.15);">
-              <th style="padding: 6px; text-align: left;">Date / Time</th>
-              <th style="padding: 6px; text-align: left;">Stand</th>
-              <th style="padding: 6px; text-align: center;">Burst</th>
-              <th style="padding: 6px; text-align: left;">Weather</th>
-              <th style="padding: 6px; text-align: left;">HD Status</th>
+              <th style="padding: 6px 8px; text-align: left;">Date / Time</th>
+              <th style="padding: 6px 8px; text-align: left;">Camera & GPS</th>
+              <th style="padding: 6px 8px; text-align: center;">Burst</th>
+              <th style="padding: 6px 8px; text-align: left;">Temp & Wind</th>
+              <th style="padding: 6px 8px; text-align: left;">Barometer & Moon</th>
+              <th style="padding: 6px 8px; text-align: center;">AI Conf / HD</th>
             </tr>
             {% for m in logs %}
             <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
-              <td style="padding: 6px;"><code>{{ m.time_formatted }}</code><br><small style="color: #aaa;">{{ m.time_window }}</small></td>
-              <td style="padding: 6px;"><b style="color: #f39c12;">{{ m.stand }}</b></td>
-              <td style="padding: 6px; text-align: center;"><code>{{ m.burst_count }} pics</code></td>
-              <td style="padding: 6px; font-size: 12px;">{{ m.temperature }}°F • {{ m.wind }}<br><small style="color: #aaa;">{{ m.pressure }} inHg ({{ m.pressure_tendency }})</small></td>
-              <td style="padding: 6px; font-size: 11px;"><code>{{ m.hd_status }}</code></td>
+              <td style="padding: 6px 8px;"><code>{{ m.time_formatted }}</code><br><small style="color: #2ecc71; font-weight: 700;">{{ m.time_window }}</small></td>
+              <td style="padding: 6px 8px;">📍 <b style="color: #f39c12;">{{ m.stand }}</b><br><small style="color: #aaa;">{{ m.heading or '' }}</small></td>
+              <td style="padding: 6px 8px; text-align: center;"><code>{{ m.burst_count }} pics</code></td>
+              <td style="padding: 6px 8px; font-size: 12px;"><b>{{ m.temperature }}°F</b><br><small style="color: #ccc;">💨 {{ m.wind }}</small></td>
+              <td style="padding: 6px 8px; font-size: 12px;"><code>{{ m.pressure }} inHg</code> ({{ m.pressure_tendency }})<br><small style="color: #aaa;">🌔 {{ m.moon_phase }}</small></td>
+              <td style="padding: 6px 8px; text-align: center; font-size: 11px;"><b style="color: #2ecc71;">{{ m.confidence }}%</b><br><code>{{ m.hd_status }}</code></td>
             </tr>
             {% endfor %}
           </table>
 
-  # ============================================================================
-  # Right Column: Complete Photo Vault Gallery for This Buck
-  # ============================================================================
-  - type: vertical-stack
-    cards:
+      # 4. Complete Photo Vault Gallery for This Buck
       - type: markdown
         content: |
           {% set a = states.camera.stealthcam_buck_profile_<slot>.attributes if states.camera.stealthcam_buck_profile_<slot> is defined else {} %}

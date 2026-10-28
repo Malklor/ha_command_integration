@@ -555,12 +555,22 @@ class StealthCamBuckTracker:
             best_s = max(s_list, key=lambda x: float(x.get("profile_confidence", 0)))
             name = existing_b.get("custom_name") or best_s.get("buck_name") or latest.get("buck_name") or bid
 
-            # Stand frequency breakdown
+            # Stand frequency & detailed breakdown
             stand_counts: Dict[str, int] = {}
+            stand_photos: Dict[str, int] = {}
+            stand_last_seen: Dict[str, str] = {}
+            stand_windows: Dict[str, Dict[str, int]] = {}
             window_counts: Dict[str, int] = {"Dawn": 0, "Midday": 0, "Dusk": 0, "Night": 0}
+            hourly_counts: Dict[str, int] = {f"{h:02d}": 0 for h in range(24)}
+            temp_bands: Dict[str, int] = {"<45°F": 0, "45-55°F": 0, "55-65°F": 0, ">65°F": 0}
+            pressure_trends: Dict[str, int] = {"Rising": 0, "Steady": 0, "Falling": 0}
+            moon_counts: Dict[str, int] = {}
+            wind_counts: Dict[str, int] = {}
             temps: List[float] = []
             pressures: List[float] = []
             winds: List[str] = []
+            wind_speeds: List[float] = []
+            confs: List[float] = []
             all_photos: List[Dict[str, Any]] = []
             movement_log: List[Dict[str, Any]] = []
 
@@ -573,6 +583,7 @@ class StealthCamBuckTracker:
             corridors: List[str] = []
             movement_vectors: List[Dict[str, Any]] = []
             movement_waypoints: List[Dict[str, Any]] = []
+            total_distance_yards = 0
 
             for step_idx, item in enumerate(chronological, start=1):
                 st = item.get("camera_name", "Unknown")
@@ -582,15 +593,47 @@ class StealthCamBuckTracker:
                 hdg = item.get("heading") or gfallback.get("heading") or "Unknown"
 
                 stand_counts[st] = stand_counts.get(st, 0) + 1
+                stand_photos[st] = stand_photos.get(st, 0) + int(item.get("burst_count", len(item.get("photos", [])) or 1))
+                stand_last_seen[st] = item.get("time_formatted") or ""
                 w_label = item.get("time_window", "Night")
                 window_counts[w_label] = window_counts.get(w_label, 0) + 1
+                sw = stand_windows.setdefault(st, {"Dawn": 0, "Midday": 0, "Dusk": 0, "Night": 0})
+                sw[w_label] = sw.get(w_label, 0) + 1
+
+                if item.get("hour") is not None:
+                    hk = f"{int(item['hour']):02d}"
+                    hourly_counts[hk] = hourly_counts.get(hk, 0) + 1
 
                 if item.get("temperature") is not None:
-                    temps.append(float(item["temperature"]))
+                    tval = float(item["temperature"])
+                    temps.append(tval)
+                    if tval < 45:
+                        temp_bands["<45°F"] += 1
+                    elif tval < 55:
+                        temp_bands["45-55°F"] += 1
+                    elif tval <= 65:
+                        temp_bands["55-65°F"] += 1
+                    else:
+                        temp_bands[">65°F"] += 1
+
                 if item.get("pressure") is not None:
                     pressures.append(float(item["pressure"]))
+                ptrend = item.get("pressure_tendency") or "Steady"
+                pressure_trends[ptrend] = pressure_trends.get(ptrend, 0) + 1
+
+                if item.get("wind_speed") is not None:
+                    wind_speeds.append(float(item["wind_speed"]))
                 if item.get("wind_cardinal") and item.get("wind_cardinal") != "N/A":
-                    winds.append(item["wind_cardinal"])
+                    wc = item["wind_cardinal"]
+                    winds.append(wc)
+                    wind_counts[wc] = wind_counts.get(wc, 0) + 1
+
+                if item.get("moon_phase"):
+                    mp = str(item["moon_phase"])
+                    moon_counts[mp] = moon_counts.get(mp, 0) + 1
+
+                if item.get("profile_confidence") is not None:
+                    confs.append(float(item["profile_confidence"]))
 
                 dt_obj = None
                 if item.get("created_at"):
@@ -609,6 +652,9 @@ class StealthCamBuckTracker:
                     "time_window": w_label,
                     "burst_count": item.get("burst_count", 1),
                     "temperature": item.get("temperature"),
+                    "pressure": item.get("pressure"),
+                    "pressure_tendency": ptrend,
+                    "moon_phase": item.get("moon_phase"),
                     "wind": f"{item.get('wind_speed')} mph {item.get('wind_cardinal')}" if item.get("wind_speed") is not None else "Calm",
                 })
 
@@ -628,6 +674,8 @@ class StealthCamBuckTracker:
                         dlon = (lon - prev_lon) * rad
                         a_val = math.sin(dlat / 2) ** 2 + math.cos(prev_lat * rad) * math.cos(lat * rad) * math.sin(dlon / 2) ** 2
                         dist_yd = round(2 * 6371000 * 1.09361 * math.atan2(math.sqrt(a_val), math.sqrt(1 - a_val)))
+                        total_distance_yards += dist_yd
+                        speed_yph = round(dist_yd / max(0.05, hours_diff))
                         movement_vectors.append({
                             "from_stand": prev_stand,
                             "to_stand": st,
@@ -636,6 +684,7 @@ class StealthCamBuckTracker:
                             "to_lat": lat,
                             "to_lon": lon,
                             "distance_yards": dist_yd,
+                            "speed_yards_per_hr": speed_yph,
                             "elapsed_hours": round(hours_diff, 2),
                             "elapsed_label": elapsed_label,
                             "date_label": dt_obj.strftime("%b %-d"),
@@ -684,6 +733,44 @@ class StealthCamBuckTracker:
             daylight_sightings = window_counts.get("Dawn", 0) + window_counts.get("Midday", 0) + window_counts.get("Dusk", 0)
             daylight_pct = round((daylight_sightings / max(1, len(s_list))) * 100)
 
+            # Build rich per-stand analytics table
+            stand_analytics = []
+            for st_name, st_cnt in sorted(stand_counts.items(), key=lambda x: x[1], reverse=True):
+                ginfo = stands_gps.get(st_name, {})
+                sw_map = stand_windows.get(st_name, {})
+                top_w = max(sw_map.items(), key=lambda x: x[1])[0] if sw_map else "Night"
+                stand_analytics.append({
+                    "stand": st_name,
+                    "sightings": st_cnt,
+                    "pct": round((st_cnt / max(1, len(s_list))) * 100),
+                    "photos": stand_photos.get(st_name, st_cnt),
+                    "last_seen": stand_last_seen.get(st_name, ""),
+                    "top_window": top_w,
+                    "heading": ginfo.get("heading", "Unknown"),
+                    "latitude": ginfo.get("latitude"),
+                    "longitude": ginfo.get("longitude"),
+                })
+
+            # Build Tactical Hunt Prescription for this buck
+            fav_hdg = stands_gps.get(favorite_stand, {}).get("heading", "Unknown")
+            best_wind_dir = max(set(winds), key=winds.count) if winds else "Variable"
+            best_temp = round(sum(temps) / len(temps), 1) if temps else 50.0
+            best_baro = round(sum(pressures) / len(pressures), 2) if pressures else 30.00
+            top_ptrend = max(pressure_trends.items(), key=lambda x: x[1])[0] if pressure_trends else "Steady"
+            hunt_prescription = {
+                "recommended_stand": favorite_stand,
+                "stand_heading": fav_hdg,
+                "best_time_window": "Dawn (5:30–8:30 AM)" if window_counts.get("Dawn", 0) >= window_counts.get("Dusk", 0) and daylight_sightings > 0 else ("Dusk (4:30–7:30 PM)" if window_counts.get("Dusk", 0) > 0 else f"Crepuscular Edge ({preferred_window} Transition)"),
+                "optimal_temp_range": f"{round(min(temps))}°F – {round(max(temps))}°F (Avg {best_temp}°F)" if temps else "45°F – 55°F",
+                "optimal_barometer": f"{best_baro} inHg ({top_ptrend})",
+                "preferred_wind": best_wind_dir,
+                "corridor_ambush": corridors[0] if corridors else f"Core staging area around {favorite_stand}",
+                "tactical_summary": (
+                    f"Target {name} at {favorite_stand} ({fav_hdg}) when temperatures drop near {best_temp}°F "
+                    f"with a {best_wind_dir} wind and {top_ptrend.lower()} barometer (~{best_baro} inHg)."
+                ),
+            }
+
             # Hero photo: prefer HD photo from highest-confidence sighting, else latest sighting hero photo
             hero_photo = best_s["photos"][0] if best_s.get("photos") else (latest["photos"][0] if latest.get("photos") else {})
             for p in all_photos:
@@ -691,16 +778,32 @@ class StealthCamBuckTracker:
                     hero_photo = p
                     break
 
+            pts_str = existing_b.get("custom_points") or best_s.get("points", "Unknown")
+            l_pts = best_s.get("left_points")
+            r_pts = best_s.get("right_points")
+            if l_pts is None or r_pts is None:
+                m_pts = re.search(r"(\d+)x(\d+)", str(pts_str))
+                if m_pts:
+                    l_pts, r_pts = int(m_pts.group(1)), int(m_pts.group(2))
+
             new_bucks_db[bid] = {
                 "buck_id": bid,
                 "name": name,
                 "custom_name": existing_b.get("custom_name"),
-                "points": existing_b.get("custom_points") or best_s.get("points", "Unknown"),
+                "points": pts_str,
+                "left_points": l_pts,
+                "right_points": r_pts,
                 "beam_spread": existing_b.get("custom_spread") or best_s.get("beam_spread", "Unknown"),
                 "age_estimate": existing_b.get("custom_age") or best_s.get("age_estimate", "Unknown"),
                 "antler_notes": existing_b.get("custom_notes") or best_s.get("antler_notes", ""),
+                "max_confidence": round(max(confs) * 100) if confs else 90,
+                "avg_confidence": round((sum(confs) / len(confs)) * 100) if confs else 88,
                 "sightings_count": len(s_list),
                 "total_photos_count": len(all_photos),
+                "avg_burst_photos": round(len(all_photos) / max(1, len(s_list)), 1),
+                "stands_visited_count": len(stand_counts),
+                "total_stands_count": max(len(stands_gps), len(stand_counts)),
+                "total_distance_yards": total_distance_yards,
                 "last_seen_at": latest.get("created_at"),
                 "last_seen_formatted": latest.get("time_formatted"),
                 "last_seen_stand": latest.get("camera_name"),
@@ -715,12 +818,26 @@ class StealthCamBuckTracker:
                 "first_seen_formatted": oldest.get("time_formatted"),
                 "favorite_stand": favorite_stand,
                 "stand_breakdown": stand_counts,
+                "stand_analytics": stand_analytics,
                 "preferred_window": preferred_window,
                 "window_breakdown": window_counts,
+                "hourly_histogram": hourly_counts,
+                "daylight_sightings": daylight_sightings,
+                "night_sightings": window_counts.get("Night", 0),
                 "daylight_pct": daylight_pct,
                 "avg_temp": round(sum(temps) / len(temps), 1) if temps else None,
+                "min_temp": round(min(temps), 1) if temps else None,
+                "max_temp": round(max(temps), 1) if temps else None,
+                "temp_bands": temp_bands,
                 "avg_pressure": round(sum(pressures) / len(pressures), 2) if pressures else None,
-                "preferred_wind": max(set(winds), key=winds.count) if winds else "Variable",
+                "min_pressure": round(min(pressures), 2) if pressures else None,
+                "max_pressure": round(max(pressures), 2) if pressures else None,
+                "pressure_trends": pressure_trends,
+                "avg_wind_speed": round(sum(wind_speeds) / len(wind_speeds), 1) if wind_speeds else None,
+                "preferred_wind": best_wind_dir,
+                "wind_breakdown": wind_counts,
+                "moon_breakdown": moon_counts,
+                "hunt_prescription": hunt_prescription,
                 "travel_corridors": corridors,
                 "movement_waypoints": movement_waypoints,
                 "movement_vectors": movement_vectors,

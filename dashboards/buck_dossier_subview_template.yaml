@@ -65,7 +65,78 @@ cards:
               - 🎯 **Total Sightings:** **{{ a.get('sightings_count', 0) }} Unique Sightings** (`{{ a.get('total_photos_count', 0) }}` archived burst photos)
               - 📝 **Antler & Physical Notes:** *{{ a.get('antler_notes', '') }}*
 
-      # 2. Behavioral Breakdown & Environmental Preferences
+      # 2. Tactical GPS Camera Movement & Travel Corridor Vector Map (Dynamic SVG)
+      - type: custom:button-card
+        entity: camera.stealthcam_buck_profile_<slot>
+        show_icon: false
+        show_name: true
+        show_label: true
+        name: "[[[ return '🗺️ ' + (entity.attributes.buck_name || 'Buck') + ' — GPS Camera Movement & Corridor Map'; ]]]"
+        label: |
+          [[[
+            var a = entity.attributes || {};
+            var stands = a.stands_gps || {};
+            var sb = a.stand_breakdown || {};
+            var wps = a.movement_waypoints || [];
+            var vecs = a.movement_vectors || [];
+            var lastStand = a.last_seen_stand || '';
+            var standNames = Object.keys(stands).filter(function(k) {
+              return stands[k] && stands[k].latitude != null && stands[k].longitude != null;
+            });
+            if (standNames.length === 0) return '<div style="padding:12px;color:#aaa;">Waiting for GPS coordinates...</div>';
+            var lats = standNames.map(function(k) { return Number(stands[k].latitude); });
+            var lons = standNames.map(function(k) { return Number(stands[k].longitude); });
+            var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+            var minLon = Math.min.apply(null, lons), maxLon = Math.max.apply(null, lons);
+            var latSpan = Math.max(maxLat - minLat, 0.0025), lonSpan = Math.max(maxLon - minLon, 0.0040);
+            minLat -= latSpan * 0.22; maxLat += latSpan * 0.22;
+            minLon -= lonSpan * 0.20; maxLon += lonSpan * 0.20;
+            var W = 540, H = 320;
+            function toX(lon) { return Math.round(36 + ((Number(lon) - minLon) / (maxLon - minLon)) * (W - 72)); }
+            function toY(lat) { return Math.round(H - 34 - ((Number(lat) - minLat) / (maxLat - minLat)) * (H - 68)); }
+            var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;background:radial-gradient(circle at 50% 50%, #16241c 0%, #0d1511 100%);border-radius:10px;border:1px solid rgba(46,204,113,0.3);display:block;">';
+            svg += '<defs><marker id="arrowGreen" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#2ecc71"/></marker></defs>';
+            vecs.forEach(function(v) {
+              if (v.from_lat != null && v.to_lat != null) {
+                var x1 = toX(v.from_lon), y1 = toY(v.from_lat), x2 = toX(v.to_lon), y2 = toY(v.to_lat);
+                var dx = x2 - x1, dy = y2 - y1, len = Math.sqrt(dx * dx + dy * dy) || 1;
+                var sx = Math.round(x1 + (dx / len) * 18), sy = Math.round(y1 + (dy / len) * 18);
+                var ex = Math.round(x2 - (dx / len) * 20), ey = Math.round(y2 - (dy / len) * 20);
+                var mx = Math.round((sx + ex) / 2 - (dy / len) * 16), my = Math.round((sy + ey) / 2 + (dx / len) * 16);
+                svg += '<path d="M ' + sx + ' ' + sy + ' Q ' + mx + ' ' + my + ' ' + ex + ' ' + ey + '" fill="none" stroke="#2ecc71" stroke-width="3" stroke-dasharray="6,4" marker-end="url(#arrowGreen)"/>';
+                var lbl = (v.distance_yards ? v.distance_yards + ' yds' : '') + (v.elapsed_label ? ' (' + v.elapsed_label + ')' : '');
+                svg += '<rect x="' + (mx - 52) + '" y="' + (my - 10) + '" width="104" height="16" rx="4" fill="rgba(0,0,0,0.82)" stroke="#2ecc71" stroke-width="1"/>';
+                svg += '<text x="' + mx + '" y="' + (my + 1) + '" fill="#2ecc71" font-size="9.5" font-weight="700" text-anchor="middle">' + lbl + '</text>';
+              }
+            });
+            standNames.forEach(function(st) {
+              var info = stands[st], x = toX(info.longitude), y = toY(info.latitude);
+              var hits = sb[st] || 0, isLast = (st === lastStand), isVisited = (hits > 0);
+              var fillCol = isLast ? '#f39c12' : (isVisited ? '#2ecc71' : 'rgba(255,255,255,0.12)');
+              var r = isLast ? 14 : (isVisited ? 12 : 8);
+              svg += '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + fillCol + '" stroke="#fff" stroke-width="1.5"/>';
+              if (isVisited) svg += '<text x="' + x + '" y="' + (y + 4) + '" fill="#000" font-size="11" font-weight="900" text-anchor="middle">' + hits + 'x</text>';
+              svg += '<text x="' + x + '" y="' + (y + r + 13) + '" fill="' + (isLast ? '#f39c12' : (isVisited ? '#2ecc71' : '#888')) + '" font-size="10.5" font-weight="800" text-anchor="middle">' + st + '</text>';
+            });
+            svg += '</svg>';
+            return svg;
+          ]]]
+        styles:
+          card:
+            - border-radius: 12px
+            - padding: 12px
+            - border: 1px solid rgba(46, 204, 113, 0.35)
+          name:
+            - font-size: 15px
+            - font-weight: 800
+            - color: "#2ecc71"
+            - text-align: left
+            - padding-bottom: 8px
+            - width: 100%
+          label:
+            - width: 100%
+
+      # 3. Behavioral Breakdown & Environmental Preferences
       - type: markdown
         title: "🧭 Behavior & Movement Breakdown"
         content: |

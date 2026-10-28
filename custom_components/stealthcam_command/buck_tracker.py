@@ -491,6 +491,25 @@ class StealthCamBuckTracker:
                                 existing_s["profiled_on_hd"] = False
                                 changed = True
 
+        # Backfill any older sightings in sightings_db that were recorded before GPS fields were added
+        for sid, s_obj in sightings_db.items():
+            cname = s_obj.get("camera_name")
+            if cname in cam_gps_map:
+                ginfo = cam_gps_map[cname]
+                if s_obj.get("latitude") is None and ginfo.get("latitude") is not None:
+                    s_obj["latitude"] = ginfo["latitude"]
+                    s_obj["longitude"] = ginfo["longitude"]
+                    s_obj["heading"] = ginfo.get("heading", "Unknown")
+                    for p_obj in s_obj.get("photos", []):
+                        p_obj["latitude"] = ginfo["latitude"]
+                        p_obj["longitude"] = ginfo["longitude"]
+                        p_obj["heading"] = ginfo.get("heading", "Unknown")
+                    changed = True
+
+        # Store camera stand GPS positions in db so _rebuild_buck_profiles can build full property map context
+        if cam_gps_map:
+            self.db["stands_gps"] = cam_gps_map
+
         # Rebuild aggregated Buck Profiles from all sightings
         self._rebuild_buck_profiles()
         if changed:
@@ -517,6 +536,7 @@ class StealthCamBuckTracker:
         """Aggregate all sightings by buck_id into rich per-buck dossiers with movement history & analytics."""
         sightings_db = self.db.get("sightings", {})
         bucks_db = self.db.setdefault("bucks", {})
+        stands_gps = self.db.get("stands_gps", {})
 
         grouped: Dict[str, List[Dict[str, Any]]] = {}
         for sid, s in sightings_db.items():
@@ -544,14 +564,23 @@ class StealthCamBuckTracker:
             all_photos: List[Dict[str, Any]] = []
             movement_log: List[Dict[str, Any]] = []
 
-            # Build chronological movement trail (oldest -> newest) for travel corridor analysis
+            # Build chronological movement trail (oldest -> newest) for travel corridor & GPS vector analysis
             chronological = list(reversed(s_list))
             prev_stand = None
             prev_dt = None
+            prev_lat = None
+            prev_lon = None
             corridors: List[str] = []
+            movement_vectors: List[Dict[str, Any]] = []
+            movement_waypoints: List[Dict[str, Any]] = []
 
-            for item in chronological:
+            for step_idx, item in enumerate(chronological, start=1):
                 st = item.get("camera_name", "Unknown")
+                gfallback = stands_gps.get(st, {})
+                lat = item.get("latitude") if item.get("latitude") is not None else gfallback.get("latitude")
+                lon = item.get("longitude") if item.get("longitude") is not None else gfallback.get("longitude")
+                hdg = item.get("heading") or gfallback.get("heading") or "Unknown"
+
                 stand_counts[st] = stand_counts.get(st, 0) + 1
                 w_label = item.get("time_window", "Night")
                 window_counts[w_label] = window_counts.get(w_label, 0) + 1
@@ -570,16 +599,52 @@ class StealthCamBuckTracker:
                     except Exception:
                         dt_obj = None
 
+                movement_waypoints.append({
+                    "step": step_idx,
+                    "stand": st,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "heading": hdg,
+                    "time_formatted": item.get("time_formatted"),
+                    "time_window": w_label,
+                    "burst_count": item.get("burst_count", 1),
+                    "temperature": item.get("temperature"),
+                    "wind": f"{item.get('wind_speed')} mph {item.get('wind_cardinal')}" if item.get("wind_speed") is not None else "Calm",
+                })
+
                 if prev_stand and prev_stand != st and prev_dt and dt_obj:
                     hours_diff = abs((dt_obj - prev_dt).total_seconds()) / 3600.0
+                    elapsed_label = (
+                        f"{round(hours_diff * 60)} mins"
+                        if hours_diff < 2
+                        else f"{hours_diff:.1f} hrs"
+                    )
                     if hours_diff <= 12:
-                        corridors.append(
-                            f"{prev_stand} → {st} ({round(hours_diff * 60)} mins on {dt_obj.strftime('%b %-d')})"
-                            if hours_diff < 2
-                            else f"{prev_stand} → {st} ({hours_diff:.1f} hrs on {dt_obj.strftime('%b %-d')})"
-                        )
+                        corridors.append(f"{prev_stand} → {st} ({elapsed_label} on {dt_obj.strftime('%b %-d')})")
+                    if prev_lat is not None and prev_lon is not None and lat is not None and lon is not None:
+                        import math
+                        rad = math.pi / 180.0
+                        dlat = (lat - prev_lat) * rad
+                        dlon = (lon - prev_lon) * rad
+                        a_val = math.sin(dlat / 2) ** 2 + math.cos(prev_lat * rad) * math.cos(lat * rad) * math.sin(dlon / 2) ** 2
+                        dist_yd = round(2 * 6371000 * 1.09361 * math.atan2(math.sqrt(a_val), math.sqrt(1 - a_val)))
+                        movement_vectors.append({
+                            "from_stand": prev_stand,
+                            "to_stand": st,
+                            "from_lat": prev_lat,
+                            "from_lon": prev_lon,
+                            "to_lat": lat,
+                            "to_lon": lon,
+                            "distance_yards": dist_yd,
+                            "elapsed_hours": round(hours_diff, 2),
+                            "elapsed_label": elapsed_label,
+                            "date_label": dt_obj.strftime("%b %-d"),
+                            "time_window": w_label,
+                        })
                 prev_stand = st
                 prev_dt = dt_obj
+                prev_lat = lat
+                prev_lon = lon
 
             for item in s_list:
                 movement_log.append({
@@ -657,6 +722,9 @@ class StealthCamBuckTracker:
                 "avg_pressure": round(sum(pressures) / len(pressures), 2) if pressures else None,
                 "preferred_wind": max(set(winds), key=winds.count) if winds else "Variable",
                 "travel_corridors": corridors,
+                "movement_waypoints": movement_waypoints,
+                "movement_vectors": movement_vectors,
+                "stands_gps": stands_gps,
                 "hero_guid": hero_photo.get("guid"),
                 "hero_local_path": hero_photo.get("local_path"),
                 "hero_media_source": hero_photo.get("media_source_id"),

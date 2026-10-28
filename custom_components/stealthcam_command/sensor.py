@@ -205,6 +205,8 @@ class StealthCamLastHitSensor(StealthCamBaseEntity, SensorEntity):
             "buck_hits_count": self.camera_data.get("buck_hits_count", 0),
             "doe_hits_count": self.camera_data.get("doe_hits_count", 0),
             "person_hits_count": self.camera_data.get("person_hits_count", 0),
+            "raw_buck_photos_count": self.camera_data.get("raw_buck_photos_count", 0),
+            "raw_doe_photos_count": self.camera_data.get("raw_doe_photos_count", 0),
             "human_activity_alert": self.camera_data.get("person_hits_count", 0) > 0,
             "morning_hits": self.camera_data.get("morning_hits", 0),
             "evening_hits": self.camera_data.get("evening_hits", 0),
@@ -225,7 +227,7 @@ class StealthCamLastHitSensor(StealthCamBaseEntity, SensorEntity):
 
 
 class StealthCamBuckHitsSensor(StealthCamBaseEntity, SensorEntity):
-    """Verified buck detection hits sensor."""
+    """Verified buck detection hits sensor (deduplicated consecutive photos)."""
     _attr_icon = "mdi:deer"
     _attr_native_unit_of_measurement = "bucks"
 
@@ -238,9 +240,17 @@ class StealthCamBuckHitsSensor(StealthCamBaseEntity, SensorEntity):
     def native_value(self) -> int:
         return self.camera_data.get("buck_hits_count", 0)
 
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        return {
+            "buck_hits_24h": self.camera_data.get("buck_hits_24h", 0),
+            "raw_buck_photos_count": self.camera_data.get("raw_buck_photos_count", 0),
+            "deduplicated_consecutive": True,
+        }
+
 
 class StealthCamDoeHitsSensor(StealthCamBaseEntity, SensorEntity):
-    """Verified doe detection hits sensor."""
+    """Verified doe detection hits sensor (deduplicated consecutive photos)."""
     _attr_icon = "mdi:deer"
     _attr_native_unit_of_measurement = "does"
 
@@ -252,6 +262,14 @@ class StealthCamDoeHitsSensor(StealthCamBaseEntity, SensorEntity):
     @property
     def native_value(self) -> int:
         return self.camera_data.get("doe_hits_count", 0)
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        return {
+            "doe_hits_24h": self.camera_data.get("doe_hits_24h", 0),
+            "raw_doe_photos_count": self.camera_data.get("raw_doe_photos_count", 0),
+            "deduplicated_consecutive": True,
+        }
 
 
 class StealthCamPersonHitsSensor(StealthCamBaseEntity, SensorEntity):

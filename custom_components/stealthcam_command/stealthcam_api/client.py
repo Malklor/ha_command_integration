@@ -28,7 +28,7 @@ def degrees_to_cardinal(deg: Optional[float]) -> str:
     if deg is None:
         return "N/A"
     val = int((deg / 22.5) + 0.5)
-    dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NW"]
+    dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
     return dirs[(val % 16)]
 
 
@@ -399,6 +399,9 @@ class StealthCamClient:
             buck_hits_count = 0
             doe_hits_count = 0
             person_hits_count = 0
+            raw_buck_photos_count = 0
+            raw_doe_photos_count = 0
+            raw_person_photos_count = 0
             morning_hits = 0
             evening_hits = 0
             midday_hits = 0
@@ -417,17 +420,25 @@ class StealthCamClient:
             if dev_captures:
                 last_hit_dt = dev_captures[0].get("createdDateTime") or dev_captures[0].get("uploadedTime")
 
+            prev_tag: Optional[str] = None
             for c in dev_captures:
                 tag = extract_species_tag(c, active_tags)
                 is_buck = (tag == "buck")
                 is_doe = (tag == "doe")
                 is_person = (tag == "person")
+                is_new_consecutive_run = (tag != prev_tag)
+                prev_tag = tag
 
                 if is_buck:
-                    buck_hits_count += 1
+                    raw_buck_photos_count += 1
+                    if is_new_consecutive_run:
+                        buck_hits_count += 1
                 elif is_doe:
-                    doe_hits_count += 1
+                    raw_doe_photos_count += 1
+                    if is_new_consecutive_run:
+                        doe_hits_count += 1
                 elif is_person:
+                    raw_person_photos_count += 1
                     person_hits_count += 1
 
                 cdt = c.get("createdDateTime") or c.get("uploadedTime")
@@ -473,9 +484,9 @@ class StealthCamClient:
 
                 if is_within_24h:
                     captures_24h_count += 1
-                    if is_buck:
+                    if is_buck and is_new_consecutive_run:
                         buck_hits_24h += 1
-                    elif is_doe:
+                    elif is_doe and is_new_consecutive_run:
                         doe_hits_24h += 1
                     elif is_person:
                         person_hits_24h += 1
@@ -596,6 +607,9 @@ class StealthCamClient:
                 "buck_hits_count": buck_hits_count,
                 "doe_hits_count": doe_hits_count,
                 "person_hits_count": person_hits_count,
+                "raw_buck_photos_count": raw_buck_photos_count,
+                "raw_doe_photos_count": raw_doe_photos_count,
+                "raw_person_photos_count": raw_person_photos_count,
                 "morning_hits": morning_hits,
                 "evening_hits": evening_hits,
                 "night_hits": night_hits,

@@ -48,11 +48,56 @@ def load_credentials():
     return env
 
 
+def test_consecutive_photo_deduplication():
+    """Unit test verifying that consecutive buck or doe photos deduplicate to 1 sighting."""
+    print("0. Running Unit Tests for Consecutive Buck/Doe Photo Deduplication...")
+    client = StealthCamClient("test@example.com", "secret")
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    # Mock API methods so we can test get_full_camera_data deterministically
+    client.get_devices = lambda: [
+        {
+            "physicalDeviceIdentifier": "PDI_TEST_1",
+            "name": "HOMER",
+            "deviceId": 101,
+        }
+    ]
+    client.get_device_statuses = lambda pdis: [
+        {"physicalDeviceIdentifier": "PDI_TEST_1", "batteryLevel": 100, "signalStrength": "Good"}
+    ]
+    client.get_latest_images = lambda: [{"deviceName": "HOMER"}]
+    client.fetch_cloud_tags = lambda: {}
+
+    # 5 consecutive buck photos, followed by 5 consecutive doe photos, followed by 1 untagged photo,
+    # followed by 3 more consecutive buck photos -> should equal 2 buck hits (8 raw) and 1 doe hit (5 raw)
+    captures = []
+    for i in range(5):
+        captures.append({"deviceId": 101, "imageGuid": f"buck_run1_{i}", "isBuck": True, "createdDateTime": now_iso})
+    for i in range(5):
+        captures.append({"deviceId": 101, "imageGuid": f"doe_run1_{i}", "isDoe": True, "createdDateTime": now_iso})
+    captures.append({"deviceId": 101, "imageGuid": "empty_1", "createdDateTime": now_iso})
+    for i in range(3):
+        captures.append({"deviceId": 101, "imageGuid": f"buck_run2_{i}", "isBuck": True, "createdDateTime": now_iso})
+
+    client.get_recent_captures = lambda limit=600: captures
+
+    data = client.get_full_camera_data(tagged_bucks={})
+    homer = data["HOMER"]
+    assert homer["buck_hits_count"] == 2, f"Expected 2 deduplicated buck hits, got {homer['buck_hits_count']}"
+    assert homer["buck_hits_24h"] == 2, f"Expected 2 deduplicated 24h buck hits, got {homer['buck_hits_24h']}"
+    assert homer["raw_buck_photos_count"] == 8, f"Expected 8 raw buck photos, got {homer['raw_buck_photos_count']}"
+    assert homer["doe_hits_count"] == 1, f"Expected 1 deduplicated doe hit, got {homer['doe_hits_count']}"
+    assert homer["doe_hits_24h"] == 1, f"Expected 1 deduplicated 24h doe hit, got {homer['doe_hits_24h']}"
+    assert homer["raw_doe_photos_count"] == 5, f"Expected 5 raw doe photos, got {homer['raw_doe_photos_count']}"
+    print("   ✅ Consecutive photo deduplication unit tests passed (5 consecutive bucks -> 1 hit, 5 consecutive does -> 1 hit)!\n")
+
+
 def run_diagnostics():
     """Run full diagnostic test suite."""
     print("=================================================================")
     print("  Stealth Cam Command - Tier 1 Live Diagnostic Test Suite")
     print("=================================================================")
+    test_consecutive_photo_deduplication()
     start_time = time.time()
     env = load_credentials()
     email = env.get("username") or env.get("stealthcam_email") or os.environ.get("STEALTHCAM_EMAIL")
@@ -89,7 +134,12 @@ def run_diagnostics():
         buck_photos = cam.get("buck_photos", [])
         doe_photos = cam.get("doe_photos", [])
         person_photos = cam.get("person_photos", [])
-        print(f"   📷 Camera: {cam_name:16} | Battery: {cam.get('battery_level'):3}% | Signal: {cam.get('signal_strength'):8} | Captures: {len(recent):2} | 🦌 Buck: {len(buck_photos):2} | 🦌 Doe: {len(doe_photos):2} | 👤 Person: {len(person_photos):2}")
+        print(
+            f"   📷 Camera: {cam_name:16} | Battery: {cam.get('battery_level'):3}% | Signal: {cam.get('signal_strength'):8} "
+            f"| Captures: {len(recent):2} | 🦌 Buck Hits: {cam.get('buck_hits_count', 0):2} (Raw: {cam.get('raw_buck_photos_count', 0):2}) "
+            f"| 🦌 Doe Hits: {cam.get('doe_hits_count', 0):2} (Raw: {cam.get('raw_doe_photos_count', 0):2}) "
+            f"| 👤 Person: {cam.get('person_hits_count', 0):2}"
+        )
         
         # Verify first 3 photos schema
         for idx, p in enumerate(recent[:3]):

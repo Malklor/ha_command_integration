@@ -1,5 +1,6 @@
 """Stealth Cam Command API Client."""
 
+from concurrent.futures import ThreadPoolExecutor
 import datetime
 import json
 import logging
@@ -29,6 +30,139 @@ def degrees_to_cardinal(deg: Optional[float]) -> str:
     val = int((deg / 22.5) + 0.5)
     dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
     return dirs[(val % 16)]
+
+
+def extract_species_tag(c: Dict[str, Any], active_tags: Dict[str, Any]) -> str:
+    """Extract and normalize species tag (buck, doe, person) from image capture data."""
+    guid = c.get("imageGuid") or c.get("guid")
+    if guid and guid in active_tags:
+        raw_tag = active_tags[guid]
+        if raw_tag is True:
+            return "buck"
+        if isinstance(raw_tag, str) and raw_tag:
+            low = raw_tag.lower().strip()
+            if "buck" in low or "antler" in low:
+                return "buck"
+            if "doe" in low or "fawn" in low or "deer" in low:
+                return "doe"
+            if "human" in low or "person" in low or "people" in low:
+                return "person"
+            return low
+
+    # Direct booleans
+    if c.get("isBuckScored") or c.get("isBuck") or c.get("isWhitetailBuck") or c.get("whitetailBuck"):
+        return "buck"
+    if c.get("isDoeScored") or c.get("isDoe") or c.get("isWhitetailDoe") or c.get("whitetailDoe"):
+        return "doe"
+    if c.get("isPerson") or c.get("isHuman") or c.get("humanDetected") or c.get("isPersonDetected"):
+        return "person"
+
+    # String fields (e.g. "Whitetail Doe", "Whitetail Buck", "Human", "Doe", "Buck")
+    string_candidates = [
+        c.get("species"),
+        c.get("speciesName"),
+        c.get("speciesType"),
+        c.get("animal"),
+        c.get("animalType"),
+        c.get("detectionType"),
+        c.get("label"),
+        c.get("tag"),
+        c.get("userTag"),
+        c.get("aiTag"),
+    ]
+    for cand in string_candidates:
+        if isinstance(cand, str) and cand:
+            low = cand.lower()
+            if "buck" in low or "antler" in low:
+                return "buck"
+            if "doe" in low or "fawn" in low:
+                return "doe"
+            if "human" in low or "person" in low or "people" in low:
+                return "person"
+            if "deer" in low:
+                return "doe"
+
+    # List or collection fields (tags, userTags, aiTags, labels, filterTags, imageTags)
+    list_candidates = [
+        c.get("tags"),
+        c.get("userTags"),
+        c.get("aiTags"),
+        c.get("labels"),
+        c.get("filterTags"),
+        c.get("imageTags"),
+        c.get("classifications"),
+        c.get("objects"),
+        c.get("objectDetection"),
+    ]
+    for lst in list_candidates:
+        if isinstance(lst, list):
+            for item in lst:
+                text = ""
+                if isinstance(item, str):
+                    text = item.lower()
+                elif isinstance(item, dict):
+                    text = (
+                        item.get("name")
+                        or item.get("tagName")
+                        or item.get("speciesName")
+                        or item.get("label")
+                        or item.get("tag")
+                        or item.get("species")
+                        or ""
+                    ).lower()
+                if text:
+                    if "buck" in text or "antler" in text:
+                        return "buck"
+                    if "doe" in text or "fawn" in text:
+                        return "doe"
+                    if "human" in text or "person" in text or "people" in text:
+                        return "person"
+                    if "deer" in text:
+                        return "doe"
+
+    return ""
+
+
+def extract_buck_score(c: Dict[str, Any]) -> Optional[str]:
+    """Extract antler points or buck score from capture metadata."""
+    if not isinstance(c, dict):
+        return None
+    score = (
+        c.get("score")
+        or c.get("buckScore")
+        or c.get("aiScore")
+        or c.get("grossScore")
+        or c.get("netScore")
+        or c.get("scoredValue")
+        or c.get("antlerScore")
+    )
+    if score is not None and str(score).strip() not in ("", "0", "None"):
+        return str(score).strip()
+    points = c.get("points") or c.get("antlerPoints")
+    if points is not None and str(points).strip() not in ("", "0", "None"):
+        return f"{points}-PT"
+    return None
+
+
+def extract_hd_info(c: Dict[str, Any]) -> tuple[bool, Optional[str]]:
+    """Extract HD availability and HD image URL."""
+    if not isinstance(c, dict):
+        return False, None
+    hd_url = (
+        c.get("hdImageUrl")
+        or (c.get("hdImageUrls")[0] if (c.get("hdImageUrls") and isinstance(c.get("hdImageUrls"), list)) else None)
+        or c.get("highResImageUrl")
+        or c.get("originalImageUrl")
+        or c.get("hiResUrl")
+    )
+    is_hd = bool(
+        c.get("isHd")
+        or c.get("hasHd")
+        or c.get("isHdDownloaded")
+        or c.get("isHiRes")
+        or hd_url
+    )
+    return is_hd, hd_url
 
 
 class StealthCamClient:
@@ -144,7 +278,7 @@ class StealthCamClient:
         except requests.RequestException as ex:
             raise StealthCamAPIError(f"Network error fetching latest images: {ex}") from ex
 
-    def get_recent_captures(self, limit: int = 200) -> List[Dict[str, Any]]:
+    def get_recent_captures(self, limit: int = 600) -> List[Dict[str, Any]]:
         """Fetch historical batch of photo captures across all cameras for statistical modeling."""
         self.ensure_auth()
         url = f"{self.base_url}/api/v6/file-manager/images"
@@ -159,13 +293,70 @@ class StealthCamClient:
             _LOGGER.warning("Failed fetching recent captures: %s", ex)
             return []
 
+    def request_hd_photo(self, image_guid: str) -> bool:
+        """Request full-resolution HD photo upload for a specific capture."""
+        self.ensure_auth()
+        endpoints = [
+            f"{self.base_url}/api/v6/file-manager/images/{image_guid}/request-hd",
+            f"{self.base_url}/api/v1/file-manager/images/{image_guid}/hd-request",
+            f"{self.base_url}/api/v1/file-manager/images/request-hd",
+        ]
+        for url in endpoints:
+            try:
+                res = self.session.post(url, json={"imageGuid": image_guid}, timeout=self.timeout)
+                if res.status_code in (200, 201, 204):
+                    _LOGGER.info("Successfully requested HD photo for GUID %s", image_guid)
+                    return True
+            except Exception as ex:
+                _LOGGER.warning("Attempt to request HD via %s failed: %s", url, ex)
+        return False
+
+    def fetch_cloud_tags(self) -> Dict[str, str]:
+        """Fetch all species tags from the Command Cloud and map image GUIDs to tag names."""
+        self.ensure_auth()
+        tag_map: Dict[str, str] = {}
+        try:
+            url = f"{self.base_url}/api/v1/file-manager/tags"
+            res = self.session.get(url, timeout=self.timeout)
+            if res.status_code != 200:
+                return tag_map
+            tags = res.json()
+            if not isinstance(tags, list):
+                return tag_map
+
+            def _fetch_single_tag(tag_name: str):
+                try:
+                    p = {"takeCount": 300, "skipCount": 0, "tags": [tag_name]}
+                    r = self.session.post(
+                        f"{self.base_url}/api/v6/file-manager/images",
+                        json=p,
+                        timeout=self.timeout,
+                    )
+                    if r.status_code == 200:
+                        return tag_name, r.json().get("images", [])
+                except Exception as ex:
+                    _LOGGER.debug("Error fetching tag %s: %s", tag_name, ex)
+                return tag_name, []
+
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                results = executor.map(_fetch_single_tag, tags)
+                for tag_name, images in results:
+                    for img in images:
+                        guid = img.get("imageGuid") or img.get("guid")
+                        if guid:
+                            tag_map[guid] = tag_name
+        except Exception as ex:
+            _LOGGER.warning("Failed to fetch cloud tags: %s", ex)
+        return tag_map
+
     def get_full_camera_data(self, tagged_bucks: Optional[Dict[str, Any]] = None) -> Dict[str, Dict[str, Any]]:
         """Fetch unified dictionary of all cameras with status, latest photo, weather, GPS, and stats."""
         devices = self.get_devices()
         pdis = [d["physicalDeviceIdentifier"] for d in devices if "physicalDeviceIdentifier" in d]
         statuses = self.get_device_statuses(pdis)
         latest_images = self.get_latest_images()
-        recent_captures = self.get_recent_captures(limit=200)
+        recent_captures = self.get_recent_captures(limit=600)
+        cloud_tags = self.fetch_cloud_tags()
 
         status_map = {s["physicalDeviceIdentifier"]: s for s in statuses}
         image_map = {img["deviceName"]: img for img in latest_images if "deviceName" in img}
@@ -176,6 +367,22 @@ class StealthCamClient:
             dev_id = cap.get("deviceId")
             if dev_id:
                 captures_by_dev.setdefault(dev_id, []).append(cap)
+
+        active_tags = dict(cloud_tags)
+        if tagged_bucks is not None:
+            active_tags.update(tagged_bucks)
+        else:
+            tagged_file = "/config/stealthcam_tagged_bucks.json"
+            if not os.path.exists(tagged_file):
+                tagged_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tagged_bucks.json")
+            if not os.path.exists(tagged_file):
+                tagged_file = "/home/tgoetz/Projects/ha_command_integration/tagged_bucks.json"
+            if os.path.exists(tagged_file):
+                try:
+                    with open(tagged_file) as tf:
+                        active_tags.update(json.load(tf))
+                except Exception:
+                    pass
 
         result = {}
         for dev in devices:
@@ -192,6 +399,9 @@ class StealthCamClient:
             buck_hits_count = 0
             doe_hits_count = 0
             person_hits_count = 0
+            raw_buck_photos_count = 0
+            raw_doe_photos_count = 0
+            raw_person_photos_count = 0
             morning_hits = 0
             evening_hits = 0
             midday_hits = 0
@@ -206,48 +416,29 @@ class StealthCamClient:
             midday_24h = 0
             night_24h = 0
 
+            last_hit_dt = None
             if dev_captures:
                 last_hit_dt = dev_captures[0].get("createdDateTime") or dev_captures[0].get("uploadedTime")
 
-            active_tags = dict(tagged_bucks) if tagged_bucks is not None else {}
-            if tagged_bucks is None:
-                tagged_file = "/config/stealthcam_tagged_bucks.json"
-                if not os.path.exists(tagged_file):
-                    tagged_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tagged_bucks.json")
-                if not os.path.exists(tagged_file):
-                    tagged_file = "/home/tgoetz/Projects/ha_command_integration/tagged_bucks.json"
-                if os.path.exists(tagged_file):
-                    try:
-                        with open(tagged_file) as tf:
-                            active_tags = json.load(tf)
-                    except Exception:
-                        pass
-
+            prev_tag: Optional[str] = None
             for c in dev_captures:
-                guid = c.get("imageGuid")
-                raw_tag = active_tags.get(guid)
-                if raw_tag is True:
-                    tag = "buck"
-                elif isinstance(raw_tag, str):
-                    tag = raw_tag.lower()
-                elif c.get("isBuckScored"):
-                    tag = "buck"
-                elif c.get("isDoeScored") or c.get("isDoe"):
-                    tag = "doe"
-                elif c.get("isPerson") or c.get("isHuman"):
-                    tag = "person"
-                else:
-                    tag = ""
-
+                tag = extract_species_tag(c, active_tags)
                 is_buck = (tag == "buck")
                 is_doe = (tag == "doe")
                 is_person = (tag == "person")
+                is_new_consecutive_run = (tag != prev_tag)
+                prev_tag = tag
 
                 if is_buck:
-                    buck_hits_count += 1
+                    raw_buck_photos_count += 1
+                    if is_new_consecutive_run:
+                        buck_hits_count += 1
                 elif is_doe:
-                    doe_hits_count += 1
+                    raw_doe_photos_count += 1
+                    if is_new_consecutive_run:
+                        doe_hits_count += 1
                 elif is_person:
+                    raw_person_photos_count += 1
                     person_hits_count += 1
 
                 cdt = c.get("createdDateTime") or c.get("uploadedTime")
@@ -293,9 +484,9 @@ class StealthCamClient:
 
                 if is_within_24h:
                     captures_24h_count += 1
-                    if is_buck:
+                    if is_buck and is_new_consecutive_run:
                         buck_hits_24h += 1
-                    elif is_doe:
+                    elif is_doe and is_new_consecutive_run:
                         doe_hits_24h += 1
                     elif is_person:
                         person_hits_24h += 1
@@ -333,22 +524,12 @@ class StealthCamClient:
                 thumb_urls = c.get("thumbnailUrls") or []
                 cdt = c.get("createdDateTime") or c.get("uploadedTime")
                 guid = c.get("imageGuid")
-                raw_tag = active_tags.get(guid)
-                if raw_tag is True:
-                    tag = "buck"
-                elif isinstance(raw_tag, str):
-                    tag = raw_tag.lower()
-                elif c.get("isBuckScored") or c.get("isBuck"):
-                    tag = "buck"
-                elif c.get("isDoeScored") or c.get("isDoe"):
-                    tag = "doe"
-                elif c.get("isPerson") or c.get("isHuman") or c.get("humanDetected"):
-                    tag = "person"
-                else:
-                    tag = ""
+                tag = extract_species_tag(c, active_tags)
                 is_buck = (tag == "buck")
                 is_doe = (tag == "doe")
                 is_person = (tag == "person")
+                buck_score = extract_buck_score(c)
+                is_hd, hd_url = extract_hd_info(c)
 
                 time_str = "Recent"
                 hour = 0
@@ -360,13 +541,16 @@ class StealthCamClient:
                     except Exception:
                         time_str = str(cdt)[:16]
                 p_data = {
-                    "image_url": img_urls[0] if img_urls else None,
+                    "image_url": hd_url if (is_hd and hd_url) else (img_urls[0] if img_urls else None),
                     "thumb_url": thumb_urls[0] if thumb_urls else (img_urls[0] if img_urls else None),
                     "time_str": time_str,
                     "tag": tag,
                     "is_buck": is_buck,
                     "is_doe": is_doe,
                     "is_person": is_person,
+                    "buck_score": buck_score,
+                    "is_hd": is_hd,
+                    "hd_image_url": hd_url,
                     "guid": guid,
                     "hour": hour,
                 }
@@ -380,6 +564,8 @@ class StealthCamClient:
 
             rotate_angle = dev.get("rotateAngle")
             heading_cardinal = degrees_to_cardinal(rotate_angle) if rotate_angle is not None else "N/A"
+            latest_is_hd, latest_hd_url = extract_hd_info(latest_img)
+            latest_buck_score = extract_buck_score(latest_img)
 
             result[name] = {
                 "id": dev_id,
@@ -403,9 +589,12 @@ class StealthCamClient:
                 "last_sync_unix": status.get("lastSyncDateUnixTime"),
                 "firmware_version": status.get("firmwareVersion", "Unknown"),
                 # Photo & Environmental Telemetry
-                "latest_image_url": latest_img.get("imageUrl"),
+                "latest_image_url": latest_hd_url if (latest_is_hd and latest_hd_url) else latest_img.get("imageUrl"),
                 "latest_thumb_url": latest_img.get("thumbnailUrl"),
                 "latest_image_guid": latest_img.get("imageGuid"),
+                "latest_buck_score": latest_buck_score,
+                "latest_is_hd": latest_is_hd,
+                "latest_hd_image_url": latest_hd_url,
                 "temperature": latest_img.get("temperature"),
                 "pressure": latest_img.get("pressure"),
                 "pressure_tendency": latest_img.get("pressureTendency", "Steady"),
@@ -418,6 +607,9 @@ class StealthCamClient:
                 "buck_hits_count": buck_hits_count,
                 "doe_hits_count": doe_hits_count,
                 "person_hits_count": person_hits_count,
+                "raw_buck_photos_count": raw_buck_photos_count,
+                "raw_doe_photos_count": raw_doe_photos_count,
+                "raw_person_photos_count": raw_person_photos_count,
                 "morning_hits": morning_hits,
                 "evening_hits": evening_hits,
                 "night_hits": night_hits,

@@ -550,27 +550,40 @@ class StealthCamPredictiveHuntForecastSensor(CoordinatorEntity, SensorEntity):
         # Returns current top recommended hunt window
         top_rec = self.extra_state_attributes.get("top_recommendation", {})
         if top_rec:
-            return f"{top_rec.get('day', 'Upcoming')} ({'Dawn' if 'Dawn' in top_rec.get('window', '') else 'Dusk'}): {top_rec.get('stand', 'HOMER')} • {top_rec.get('score', 95)}/100 {top_rec.get('rating', 'Prime')}"
+            return f"{top_rec.get('day', 'Upcoming')} ({'Dawn' if 'Dawn' in top_rec.get('window', '') else 'Dusk'}): {top_rec.get('stand', 'Primary Stand')} • {top_rec.get('score', 95)}/100 {top_rec.get('rating', 'Prime')}"
         return "Analyzing Weather & Solunar Rut Data..."
 
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         cams = self.coordinator.data or {}
-        # Dynamic stand evaluation model
-        stands_model = {
-            "HOMER": {"heading": 43, "dawn_mult": 1.2, "dusk_mult": 1.0, "habitat": "Bedding ridge corridor"},
-            "LISA": {"heading": 329, "dawn_mult": 1.3, "dusk_mult": 0.8, "habitat": "Morning oak scrape line"},
-            "MAGGIE": {"heading": 297, "dawn_mult": 0.7, "dusk_mult": 1.3, "habitat": "Evening clover food plot"},
-            "SANTA'S HELPER": {"heading": 356, "dawn_mult": 1.1, "dusk_mult": 0.9, "habitat": "Creek crossing funnel"},
-            "BART": {"heading": 177, "dawn_mult": 0.9, "dusk_mult": 1.1, "habitat": "Pine transition & oak flat"},
-            "MARGE": {"heading": 89, "dawn_mult": 0.8, "dusk_mult": 0.8, "habitat": "East agricultural border"},
-        }
-        
+        # Dynamically rank discovered cameras by morning vs evening vs overall activity
+        cam_list = list(cams.items())
+        if cam_list:
+            dawn_sorted = sorted(
+                cam_list,
+                key=lambda kv: (kv[1].get("morning_hits", 0) * 2 + kv[1].get("buck_hits_count", 0) * 3),
+                reverse=True,
+            )
+            dusk_sorted = sorted(
+                cam_list,
+                key=lambda kv: (kv[1].get("evening_hits", 0) * 2 + kv[1].get("doe_hits_count", 0) * 2 + kv[1].get("buck_hits_count", 0) * 2),
+                reverse=True,
+            )
+            dawn_primary = dawn_sorted[0][0]
+            dawn_secondary = dawn_sorted[1][0] if len(dawn_sorted) > 1 else dawn_primary
+            dusk_primary = dusk_sorted[0][0]
+            dusk_secondary = dusk_sorted[1][0] if len(dusk_sorted) > 1 else dusk_primary
+        else:
+            dawn_primary = "North Ridge"
+            dawn_secondary = "Oak Flat"
+            dusk_primary = "Food Plot"
+            dusk_secondary = "North Ridge"
+
         now = datetime.datetime.now(datetime.timezone.utc)
         forecast_days = []
         # Synthesize solunar calendar cycle
         ref_d = datetime.datetime(2000, 1, 6, 18, 14, tzinfo=datetime.timezone.utc)
-        
+
         for i in range(5):
             d_dt = now + datetime.timedelta(days=i)
             diff_sec = (d_dt - ref_d).total_seconds() / 86400.0
@@ -597,7 +610,7 @@ class StealthCamPredictiveHuntForecastSensor(CoordinatorEntity, SensorEntity):
             low_t = 54 - i
             w_spd = 11.0
             w_dir = (210 + i * 35) % 360
-            
+
             day_entry = {
                 "date": d_dt.strftime("%Y-%m-%d"),
                 "day_name": d_dt.strftime("%A"),
@@ -615,7 +628,7 @@ class StealthCamPredictiveHuntForecastSensor(CoordinatorEntity, SensorEntity):
                 "temp_change": -6 if i == 2 else 1,
                 "morning_hunt": {
                     "window_name": "🌅 Dawn (5:30–8:30 AM)",
-                    "best_stand": "LISA" if i % 2 == 0 else "HOMER",
+                    "best_stand": dawn_primary if i % 2 == 0 else dawn_secondary,
                     "score": 95 if i == 2 else 88,
                     "rating": "⭐⭐⭐⭐⭐ Prime" if i == 2 else "⭐⭐⭐⭐ Good",
                     "target_temp": f"{low_t}°F",
@@ -624,7 +637,7 @@ class StealthCamPredictiveHuntForecastSensor(CoordinatorEntity, SensorEntity):
                 },
                 "evening_hunt": {
                     "window_name": "🌇 Dusk (4:30–7:30 PM)",
-                    "best_stand": "MAGGIE" if i % 2 == 0 else "HOMER",
+                    "best_stand": dusk_primary if i % 2 == 0 else dusk_secondary,
                     "score": 90 if i == 2 else 84,
                     "rating": "⭐⭐⭐⭐⭐ Prime" if i == 2 else "⭐⭐⭐⭐ Good",
                     "target_temp": f"{high_t - 3}°F",

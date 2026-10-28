@@ -27,7 +27,7 @@ def load_credentials():
     """Load credentials from local environment files."""
     candidates = [
         os.path.join(REPO_ROOT, ".env"),
-        "/home/tgoetz/Projects/stealthcam_personal/.env",
+        os.path.join(os.path.dirname(REPO_ROOT), "stealthcam_personal", ".env"),
         os.path.expanduser("~/.stealthcam.env"),
     ]
     env = {}
@@ -59,14 +59,14 @@ def test_consecutive_photo_deduplication():
     client.get_devices = lambda: [
         {
             "physicalDeviceIdentifier": "PDI_TEST_1",
-            "name": "HOMER",
+            "name": "NORTH RIDGE",
             "deviceId": 101,
         }
     ]
     client.get_device_statuses = lambda pdis: [
         {"physicalDeviceIdentifier": "PDI_TEST_1", "batteryLevel": 100, "signalStrength": "Good"}
     ]
-    client.get_latest_images = lambda: [{"deviceName": "HOMER"}]
+    client.get_latest_images = lambda: [{"deviceName": "NORTH RIDGE"}]
     client.fetch_cloud_tags = lambda: {}
 
     # 5 consecutive buck photos, followed by 5 consecutive doe photos, followed by 1 untagged photo,
@@ -83,14 +83,14 @@ def test_consecutive_photo_deduplication():
     client.get_recent_captures = lambda limit=600: captures
 
     data = client.get_full_camera_data(tagged_bucks={})
-    homer = data["HOMER"]
-    assert homer["buck_hits_count"] == 2, f"Expected 2 deduplicated buck hits, got {homer['buck_hits_count']}"
-    assert homer["buck_hits_24h"] == 2, f"Expected 2 deduplicated 24h buck hits, got {homer['buck_hits_24h']}"
-    assert homer["raw_buck_photos_count"] == 8, f"Expected 8 raw buck photos, got {homer['raw_buck_photos_count']}"
-    assert homer["doe_hits_count"] == 1, f"Expected 1 deduplicated doe hit, got {homer['doe_hits_count']}"
-    assert homer["doe_hits_24h"] == 1, f"Expected 1 deduplicated 24h doe hit, got {homer['doe_hits_24h']}"
-    assert homer["raw_doe_photos_count"] == 5, f"Expected 5 raw doe photos, got {homer['raw_doe_photos_count']}"
-    assert len(homer["buck_sightings"]) == 2, f"Expected 2 buck_sightings objects, got {len(homer['buck_sightings'])}"
+    cam = data["NORTH RIDGE"]
+    assert cam["buck_hits_count"] == 2, f"Expected 2 deduplicated buck hits, got {cam['buck_hits_count']}"
+    assert cam["buck_hits_24h"] == 2, f"Expected 2 deduplicated 24h buck hits, got {cam['buck_hits_24h']}"
+    assert cam["raw_buck_photos_count"] == 8, f"Expected 8 raw buck photos, got {cam['raw_buck_photos_count']}"
+    assert cam["doe_hits_count"] == 1, f"Expected 1 deduplicated doe hit, got {cam['doe_hits_count']}"
+    assert cam["doe_hits_24h"] == 1, f"Expected 1 deduplicated 24h doe hit, got {cam['doe_hits_24h']}"
+    assert cam["raw_doe_photos_count"] == 5, f"Expected 5 raw doe photos, got {cam['raw_doe_photos_count']}"
+    assert len(cam["buck_sightings"]) == 2, f"Expected 2 buck_sightings objects, got {len(cam['buck_sightings'])}"
     print("   ✅ Consecutive photo deduplication unit tests passed (5 consecutive bucks -> 1 hit, 5 consecutive does -> 1 hit)!\n")
 
 
@@ -125,11 +125,11 @@ def test_buck_tracker_and_iterative_hd():
 
         # Simulate a 3-photo consecutive buck burst with low-confidence initial frame
         mock_cam_data = {
-            "MAGGIE": {
+            "SOUTH PLOT": {
                 "buck_sightings": [
                     {
                         "sighting_id": "101_guid_frame_1",
-                        "camera_name": "MAGGIE",
+                        "camera_name": "SOUTH PLOT",
                         "device_id": 101,
                         "pdi": "PDI_101",
                         "hero_guid": "guid_frame_1",
@@ -152,7 +152,7 @@ def test_buck_tracker_and_iterative_hd():
         assert summary["unique_bucks_count"] == 1
 
         # Step 2: Simulate Frame #1 HD failing (or low confidence after HD) -> should automatically escalate to Frame #2!
-        mock_cam_data["MAGGIE"]["buck_sightings"][0]["captures"][0]["hqPhotoStatus"] = "Failed"
+        mock_cam_data["SOUTH PLOT"]["buck_sightings"][0]["captures"][0]["hqPhotoStatus"] = "Failed"
         summary2 = tracker.process_camera_data(mock_cam_data)
         assert len(requested_hd) == 2 and requested_hd[1][0] == "guid_frame_2", f"Expected iterative escalation to frame 2, got {requested_hd}"
 

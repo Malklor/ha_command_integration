@@ -114,7 +114,7 @@ name_buck:
       name: Antler & Physical Notes
       description: Distinguishing traits (tine length, crab-claw, spread, body maturity).
       required: false
-      example: "Wide 4x4 outside ears, tall G2s, uses MAGGIE -> HOMER ridge."
+      example: "Wide 4x4 outside ears, tall G2s, uses North Ridge -> Food Plot corridor."
       selector:
         text:
 

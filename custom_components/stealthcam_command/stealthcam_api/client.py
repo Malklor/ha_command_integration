@@ -402,7 +402,7 @@ class StealthCamClient:
             if not os.path.exists(tagged_file):
                 tagged_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tagged_bucks.json")
             if not os.path.exists(tagged_file):
-                tagged_file = "/home/tgoetz/Projects/ha_command_integration/tagged_bucks.json"
+                tagged_file = os.path.abspath("tagged_bucks.json")
             if os.path.exists(tagged_file):
                 try:
                     with open(tagged_file) as tf:

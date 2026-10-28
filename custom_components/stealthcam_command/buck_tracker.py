@@ -17,145 +17,26 @@ except ImportError:
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_MEDIA_DIR = "/media/stealthcam_bucks"
-FALLBACK_MEDIA_DIR = "/home/tgoetz/Projects/ha_command_integration/media_bucks"
+FALLBACK_MEDIA_DIR = os.path.abspath("media_bucks")
 DEFAULT_PROFILES_FILE = "/config/stealthcam_buck_profiles.json"
-FALLBACK_PROFILES_FILE = "/home/tgoetz/Projects/ha_command_integration/stealthcam_buck_profiles.json"
+FALLBACK_PROFILES_FILE = os.path.abspath("stealthcam_buck_profiles.json")
+DEFAULT_SEED_FILE = "/config/stealthcam_buck_seed.json"
 
-# Baseline AI Vision analysis of the initial 11 property buck sightings (Oct 22 - Oct 28, 2026)
-INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = {
-    "01a18121-fa10-7023-8620-d1ae762ff765": {
-        "buck_id": "buck_basket",
-        "buck_name": "Basket",
-        "points": "8-PT (4x4)",
-        "left_points": 4,
-        "right_points": 4,
-        "beam_spread": "Inside Ears (14\")",
-        "age_estimate": "2.5 Years",
-        "antler_notes": "Clean symmetrical 4x4 basket rack, tall curving main beams, distinct G2/G3 forks on both sides.",
-        "profile_confidence": 0.96,
-        "antlers_clearly_visible": True,
-    },
-    "01a17d02-30d0-73ab-8f4d-dc78729c9037": {
-        "buck_id": "buck_skyscraper",
-        "buck_name": "Skyscraper",
-        "points": "6-PT (3x3)",
-        "left_points": 3,
-        "right_points": 3,
-        "beam_spread": "Narrow / High (12\")",
-        "age_estimate": "2.5 Years",
-        "antler_notes": "Upright Y-frame 6-pointer with high G2 fork on right main beam, cruising dawn corridor.",
-        "profile_confidence": 0.90,
-        "antlers_clearly_visible": True,
-    },
-    "01a17bd3-b350-7736-8e74-5b5ba28bac73": {
-        "buck_id": "buck_boss",
-        "buck_name": "Boss",
-        "points": "8-PT (4x4)",
-        "left_points": 4,
-        "right_points": 4,
-        "beam_spread": "Wide (17\" Outside Ears)",
-        "age_estimate": "3.5+ Years (Mature)",
-        "antler_notes": "Heavy-bodied mature 8-pointer with long sweeping main beams, tall G2s, actively working the overhanging licking branch scrape at MAGGIE.",
-        "profile_confidence": 0.94,
-        "antlers_clearly_visible": True,
-    },
-    "01a175e4-8910-753b-ae29-90efe546e53c": {
-        "buck_id": "buck_boss",
-        "buck_name": "Boss",
-        "points": "8-PT (4x4)",
-        "left_points": 4,
-        "right_points": 4,
-        "beam_spread": "Wide (17\" Outside Ears)",
-        "age_estimate": "3.5+ Years (Mature)",
-        "antler_notes": "Wide 4x4 frame exiting scrape area behind sapling at MAGGIE (16 seconds after 7-photo licking branch burst).",
-        "profile_confidence": 0.92,
-        "antlers_clearly_visible": True,
-    },
-    "01a175e4-4a90-723c-ace2-d5651659b19f": {
-        "buck_id": "buck_boss",
-        "buck_name": "Boss",
-        "points": "8-PT (4x4)",
-        "left_points": 4,
-        "right_points": 4,
-        "beam_spread": "Wide (17\" Outside Ears)",
-        "age_estimate": "3.5+ Years (Mature)",
-        "antler_notes": "Crystal clear profile reaching vertically into the licking branch at MAGGIE; long main beams and deep G2/G3 forks.",
-        "profile_confidence": 0.95,
-        "antlers_clearly_visible": True,
-    },
-    "01a171be-5730-77c9-aa92-2dce886841bc": {
-        "buck_id": "buck_skyscraper",
-        "buck_name": "Skyscraper",
-        "points": "6-PT (3x3)",
-        "left_points": 3,
-        "right_points": 3,
-        "beam_spread": "Narrow / High (12\")",
-        "age_estimate": "2.5 Years",
-        "antler_notes": "Compact upright 6-point rack emerging from brush line at MAGGIE.",
-        "profile_confidence": 0.85,
-        "antlers_clearly_visible": True,
-    },
-    "01a1775b-eea0-72e2-b37d-996ba9433ff0": {
-        "buck_id": "buck_outlaw",
-        "buck_name": "Outlaw",
-        "points": "8-PT (4x4)",
-        "left_points": 4,
-        "right_points": 4,
-        "beam_spread": "16\" (Ears)",
-        "age_estimate": "3.5 Years",
-        "antler_notes": "Symmetrical 8-point rack with upright tines by the large oak trunk at SANTA'S HELPER.",
-        "profile_confidence": 0.88,
-        "antlers_clearly_visible": True,
-    },
-    "01a172d2-0950-74c7-9601-2937a7912baf": {
-        "buck_id": "buck_junior",
-        "buck_name": "Junior",
-        "points": "4-PT (Fork)",
-        "left_points": 2,
-        "right_points": 2,
-        "beam_spread": "Narrow (10\")",
-        "age_estimate": "1.5 Years (Yearling)",
-        "antler_notes": "Young fork-horn / small basket buck feeding head-down at dawn near SANTA'S HELPER oak.",
-        "profile_confidence": 0.68,
-        "antlers_clearly_visible": False,
-    },
-    "01a17bea-4890-76c6-b2c4-f8813dde3d5c": {
-        "buck_id": "buck_boss",
-        "buck_name": "Boss",
-        "points": "8-PT (4x4)",
-        "left_points": 4,
-        "right_points": 4,
-        "beam_spread": "Wide (17\" Outside Ears)",
-        "age_estimate": "3.5+ Years (Mature)",
-        "antler_notes": "Captured at HOMER at 12:51 AM on Oct 27—just 24 minutes after leaving MAGGIE (12:27 AM), proving a direct MAGGIE -> HOMER ridge travel corridor!",
-        "profile_confidence": 0.89,
-        "antlers_clearly_visible": True,
-    },
-    "01a17a88-cc60-7006-bcbe-2199011fff66": {
-        "buck_id": "buck_junior",
-        "buck_name": "Junior",
-        "points": "4-PT (Fork)",
-        "left_points": 2,
-        "right_points": 2,
-        "beam_spread": "Narrow (10\")",
-        "age_estimate": "1.5 Years (Yearling)",
-        "antler_notes": "Young small-antlered yearling buck walking left-to-right at dusk (6:25 PM) at HOMER.",
-        "profile_confidence": 0.65,
-        "antlers_clearly_visible": False,
-    },
-    "01a166df-80f0-7433-8809-1cef2088de1e": {
-        "buck_id": "buck_junior",
-        "buck_name": "Junior",
-        "points": "4-PT (Fork)",
-        "left_points": 2,
-        "right_points": 2,
-        "beam_spread": "Narrow (10\")",
-        "age_estimate": "1.5 Years (Yearling)",
-        "antler_notes": "Head-down feeding posture at HOMER; antlers partially obscured by saplings (escalated for HD verification).",
-        "profile_confidence": 0.55,
-        "antlers_clearly_visible": False,
-    },
-}
+
+def _load_optional_seed_sightings() -> Dict[str, Dict[str, Any]]:
+    """Load optional local seed sightings from `/config/stealthcam_buck_seed.json` if present."""
+    if os.path.exists(DEFAULT_SEED_FILE):
+        try:
+            with open(DEFAULT_SEED_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+        except Exception:
+            pass
+    return {}
+
+
+INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = _load_optional_seed_sightings()
 
 
 def slugify_buck_id(name: str) -> str:

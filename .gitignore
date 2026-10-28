@@ -35,6 +35,10 @@ wheels/
 # Home Assistant local files
 www/
 trail_cams/
+media_bucks/
+stealthcam_buck_profiles.json
+stealthcam_buck_seed.json
+fix_photo_reels.py
 *.jpg
 *.log
 *.zip

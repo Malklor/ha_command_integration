@@ -21,6 +21,11 @@ Provides real-time hardware telemetry, cellular connectivity monitoring, field w
 - 🌤️ **Field Environmental Sensors**: Ambient field temperature (`°F`), barometric pressure (`inHg`), pressure trend, wind speed & compass direction, and moon phase.
 - 🧭 **Stand Scent & Wind Direction Matrix**: Evaluates current field wind against each camera stand's physical heading to compute favorable, marginal, or unfavorable hunting conditions.
 - 🦌 **Multi-Classification Photo Tagging**: 1-tap tagging for **Bucks (Gold ✨)**, **Does (Blue 🦌)**, and **Human Activity (Red Alert 🚨)** with automatic visual borders and glow badges.
+- 🔢 **Consecutive Photo Burst Sighting Deduplication**: Automatically groups consecutive burst photos of a buck or doe on a camera into a single sighting count (`buck_hits_count`, `doe_hits_count`, `buck_hits_24h`, `doe_hits_24h`), while preserving raw photo counts (`raw_buck_photos_count`, `raw_doe_photos_count`).
+- 🏆 **Target Buck Profiler, `/media` Vault & Movement Tracker (`v1.3.0`)**:
+  - Automatically downloads and archives every buck burst photo locally to `/media/stealthcam_bucks/<guid>.jpg` (and `<guid>_hd.jpg`) for permanent browsing in Home Assistant's Media Browser (`media-source://media_source/local/stealthcam_bucks/...`).
+  - **Iterative HD Photo State Machine**: Automatically requests full-resolution uncompressed HD photos (`PATCH /api/v1/file-manager/images/{guid}/{device_id}/hq/request`) for the hero frame (#1) of a buck sighting burst; if Frame #1 fails or has obscured antlers, it automatically escalates to Frame #2 in the burst.
+  - **Multi-Image AI Vision & Manual Buck Naming**: Supports automated antler profiling via Google Gemini (`gemini-2.5-flash`) or OpenAI (`gpt-4o`), plus manual services (`stealthcam_command.name_buck`, `stealthcam_command.assign_buck_sighting`) to name individual bucks, track last-seen timestamps, favorite stands, travel corridors, and expose `sensor.stealthcam_buck_profiles` and `camera.stealthcam_buck_profile_1..8`.
 - ⏱️ **Dual 24-Hour & All-Time Movement Distribution**: Classifies both rolling 24-hour activity and historical trends across Dawn Transitions (5–9 AM), Daylight Movement (9 AM–4 PM), Evening Feeding (4–8 PM), and Night Roaming (8 PM–5 AM).
 - 🚨 **Human Activity & Intruder Detection**: Flags cameras with human presence to immediately alert landowners of field activity.
 - 🗺️ **GPS Mapping & Stand Tracking**: Tracks camera positions on Home Assistant maps with custom stand character pins and compass headings.
@@ -65,12 +70,52 @@ Provides real-time hardware telemetry, cellular connectivity monitoring, field w
 | **Buck Hits Sensor** | `sensor.stealth_cam_north_ridge_north_ridge_positive_buck_hits` | Verified buck hit count |
 | **Peak Window Sensor** | `sensor.stealth_cam_north_ridge_north_ridge_peak_movement_window` | Stand's peak movement window |
 | **Location Sensor** | `sensor.stealth_cam_north_ridge_north_ridge_stand_location` | GPS coordinates and stand compass bearing |
+| **Buck Profiles Sensor (Hub)** | `sensor.stealthcam_buck_profiles` | Master Target Buck Hit-List, movement logs, and stand corridors |
+| **Profiled Buck Cameras (1–8)** | `camera.stealthcam_buck_profile_1` | Live hero portrait camera entities for up to 8 named property bucks |
 
 ---
 
 ## 🛠️ Services
 
 The integration registers native services for dashboard interactions and automations:
+
+### `stealthcam_command.name_buck`
+Renames an identified buck profile and optionally updates its antler points or physical notes:
+```yaml
+service: stealthcam_command.name_buck
+data:
+  buck_id: "buck_north_ridge"
+  name: "Boss"
+  points: "8-PT (4x4)"
+  antler_notes: "Wide 17-inch spread outside ears, tall G2s"
+```
+
+### `stealthcam_command.assign_buck_sighting`
+Assigns any buck sighting burst (by image GUID) to a named buck profile:
+```yaml
+service: stealthcam_command.assign_buck_sighting
+data:
+  guid: "01a1109a-f850-73a7-9fb2-8b1be1024262"
+  buck_name: "Boss"
+  points: "8-PT (4x4)"
+```
+
+### `stealthcam_command.request_hd`
+Requests the full-resolution HD photo from the cellular trail camera (or escalates to the next frame in a buck burst):
+```yaml
+service: stealthcam_command.request_hd
+data:
+  guid: "01a1109a-f850-73a7-9fb2-8b1be1024262"
+```
+
+### `stealthcam_command.configure_ai_profiler`
+Configures the optional Gemini (`gemini-2.5-flash`) or OpenAI (`gpt-4o`) API key for automated multi-image antler profiling:
+```yaml
+service: stealthcam_command.configure_ai_profiler
+data:
+  provider: "gemini"
+  api_key: "YOUR_API_KEY"
+```
 
 ### `stealthcam_command.tag_buck`
 Tags or scores a photo capture as a verified antlered buck (Gold badge):

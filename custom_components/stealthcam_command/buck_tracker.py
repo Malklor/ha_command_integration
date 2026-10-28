@@ -24,8 +24,8 @@ FALLBACK_PROFILES_FILE = "/home/tgoetz/Projects/ha_command_integration/stealthca
 # Baseline AI Vision analysis of the initial 11 property buck sightings (Oct 22 - Oct 28, 2026)
 INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = {
     "01a18121-fa10-7023-8620-d1ae762ff765": {
-        "buck_id": "buck_lisa_basket_8",
-        "buck_name": "Lisa Basket 8",
+        "buck_id": "buck_basket",
+        "buck_name": "Basket",
         "points": "8-PT (4x4)",
         "left_points": 4,
         "right_points": 4,
@@ -36,8 +36,8 @@ INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = {
         "antlers_clearly_visible": True,
     },
     "01a17d02-30d0-73ab-8f4d-dc78729c9037": {
-        "buck_id": "buck_maggie_tall_6",
-        "buck_name": "Maggie Tall 6",
+        "buck_id": "buck_skyscraper",
+        "buck_name": "Skyscraper",
         "points": "6-PT (3x3)",
         "left_points": 3,
         "right_points": 3,
@@ -48,8 +48,8 @@ INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = {
         "antlers_clearly_visible": True,
     },
     "01a17bd3-b350-7736-8e74-5b5ba28bac73": {
-        "buck_id": "buck_licking_branch_8",
-        "buck_name": "Licking Branch 8",
+        "buck_id": "buck_boss",
+        "buck_name": "Boss",
         "points": "8-PT (4x4)",
         "left_points": 4,
         "right_points": 4,
@@ -60,8 +60,8 @@ INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = {
         "antlers_clearly_visible": True,
     },
     "01a175e4-8910-753b-ae29-90efe546e53c": {
-        "buck_id": "buck_licking_branch_8",
-        "buck_name": "Licking Branch 8",
+        "buck_id": "buck_boss",
+        "buck_name": "Boss",
         "points": "8-PT (4x4)",
         "left_points": 4,
         "right_points": 4,
@@ -72,8 +72,8 @@ INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = {
         "antlers_clearly_visible": True,
     },
     "01a175e4-4a90-723c-ace2-d5651659b19f": {
-        "buck_id": "buck_licking_branch_8",
-        "buck_name": "Licking Branch 8",
+        "buck_id": "buck_boss",
+        "buck_name": "Boss",
         "points": "8-PT (4x4)",
         "left_points": 4,
         "right_points": 4,
@@ -84,8 +84,8 @@ INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = {
         "antlers_clearly_visible": True,
     },
     "01a171be-5730-77c9-aa92-2dce886841bc": {
-        "buck_id": "buck_maggie_tall_6",
-        "buck_name": "Maggie Tall 6",
+        "buck_id": "buck_skyscraper",
+        "buck_name": "Skyscraper",
         "points": "6-PT (3x3)",
         "left_points": 3,
         "right_points": 3,
@@ -96,8 +96,8 @@ INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = {
         "antlers_clearly_visible": True,
     },
     "01a1775b-eea0-72e2-b37d-996ba9433ff0": {
-        "buck_id": "buck_creek_8",
-        "buck_name": "Creek Crossing 8",
+        "buck_id": "buck_outlaw",
+        "buck_name": "Outlaw",
         "points": "8-PT (4x4)",
         "left_points": 4,
         "right_points": 4,
@@ -108,8 +108,8 @@ INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = {
         "antlers_clearly_visible": True,
     },
     "01a172d2-0950-74c7-9601-2937a7912baf": {
-        "buck_id": "buck_oak_flat_fork",
-        "buck_name": "Oak Flat Fork",
+        "buck_id": "buck_junior",
+        "buck_name": "Junior",
         "points": "4-PT (Fork)",
         "left_points": 2,
         "right_points": 2,
@@ -120,8 +120,8 @@ INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = {
         "antlers_clearly_visible": False,
     },
     "01a17bea-4890-76c6-b2c4-f8813dde3d5c": {
-        "buck_id": "buck_licking_branch_8",
-        "buck_name": "Licking Branch 8",
+        "buck_id": "buck_boss",
+        "buck_name": "Boss",
         "points": "8-PT (4x4)",
         "left_points": 4,
         "right_points": 4,
@@ -132,8 +132,8 @@ INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = {
         "antlers_clearly_visible": True,
     },
     "01a17a88-cc60-7006-bcbe-2199011fff66": {
-        "buck_id": "buck_oak_flat_fork",
-        "buck_name": "Oak Flat Fork",
+        "buck_id": "buck_junior",
+        "buck_name": "Junior",
         "points": "4-PT (Fork)",
         "left_points": 2,
         "right_points": 2,
@@ -144,8 +144,8 @@ INITIAL_SEEDED_SIGHTINGS: Dict[str, Dict[str, Any]] = {
         "antlers_clearly_visible": False,
     },
     "01a166df-80f0-7433-8809-1cef2088de1e": {
-        "buck_id": "buck_oak_flat_fork",
-        "buck_name": "Oak Flat Fork",
+        "buck_id": "buck_junior",
+        "buck_name": "Junior",
         "points": "4-PT (Fork)",
         "left_points": 2,
         "right_points": 2,

@@ -171,19 +171,30 @@ class StealthCamBuckTracker:
             return None
 
         roster_summary = []
+        reference_parts = []
         for bid, binfo in existing_bucks.items():
             roster_summary.append(
                 f"- ID `{bid}`: Name='{binfo.get('name')}', Points='{binfo.get('points')}', "
                 f"Spread='{binfo.get('beam_spread')}', Age='{binfo.get('age_estimate')}', "
                 f"Notes='{binfo.get('antler_notes')}'"
             )
+            hero_path = binfo.get("hero_local_path")
+            if hero_path and os.path.exists(hero_path) and os.path.abspath(hero_path) != os.path.abspath(image_path):
+                try:
+                    with open(hero_path, "rb") as rf:
+                        ref_b64 = base64.b64encode(rf.read()).decode("utf-8")
+                    reference_parts.append((bid, binfo.get("name", bid), binfo.get("points", "Unknown"), ref_b64))
+                except Exception:
+                    pass
         roster_text = "\n".join(roster_summary) if roster_summary else "None yet."
 
         prompt = (
             "You are an expert whitetail deer biologist and trail-camera buck profiler.\n"
-            f"Analyze this trail camera photo captured at stand '{camera_name}' at '{created_at}'.\n"
-            "Existing Known Bucks on this property:\n"
+            f"Analyze the NEW TARGET PHOTO (the first image) captured at stand '{camera_name}' at '{created_at}'.\n"
+            "Existing Known Bucks on this property (reference photos are also attached below in order):\n"
             f"{roster_text}\n\n"
+            "Carefully compare the NEW TARGET PHOTO's antler frame (main beam curvature, inside spread relative to ears, "
+            "G2/G3 tine height and ratio, brow tines, and body age) against each reference buck photo and profile.\n"
             "Respond ONLY with a valid JSON object matching this exact schema:\n"
             "{\n"
             '  "antlers_clearly_visible": true/false,\n'
@@ -191,10 +202,10 @@ class StealthCamBuckTracker:
             '  "points": "e.g. 8-PT (4x4) or 6-PT (3x3) or 4-PT (Fork) or Unknown",\n'
             '  "left_points": integer,\n'
             '  "right_points": integer,\n'
-            '  "beam_spread": "e.g. Wide (17\\" Outside Ears) or Inside Ears (14\\")",\n'
+            '  "beam_spread": "e.g. Wide (17\\" Outside Ears) or 16\\" (Ears) or Inside Ears (14\\")",\n'
             '  "age_estimate": "e.g. 1.5 Years, 2.5 Years, or 3.5+ Years (Mature)",\n'
-            '  "antler_notes": "Detailed description of main beams, G2/G3 tine height, brow tines, symmetry, and posture",\n'
-            '  "matched_buck_id": "existing buck_id if this is the same buck, or null if a new unique buck",\n'
+            '  "antler_notes": "Detailed description of main beams, G2/G3 tine height, brow tines, symmetry, and why it matches or differs from known bucks",\n'
+            '  "matched_buck_id": "existing buck_id if this is the same buck (confidence >= 0.78), or null if a new unique buck",\n'
             '  "suggested_name": "descriptive name if new buck, e.g. Wide 8 or Split Brow 10"\n'
             "}"
         )
@@ -203,37 +214,38 @@ class StealthCamBuckTracker:
             if "openai" in provider:
                 url = "https://api.openai.com/v1/chat/completions"
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                content_items: List[Dict[str, Any]] = [
+                    {"type": "text", "text": prompt},
+                    {"type": "text", "text": "NEW TARGET PHOTO TO CLASSIFY:"},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+                ]
+                for ref_bid, ref_name, ref_pts, ref_b64 in reference_parts[:6]:
+                    content_items.append({"type": "text", "text": f"REFERENCE PHOTO FOR KNOWN BUCK `{ref_bid}` ({ref_name} — {ref_pts}):"})
+                    content_items.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{ref_b64}"}})
                 payload = {
                     "model": "gpt-4o",
                     "response_format": {"type": "json_object"},
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": prompt},
-                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
-                            ],
-                        }
-                    ],
+                    "messages": [{"role": "user", "content": content_items}],
                 }
-                res = requests.post(url, headers=headers, json=payload, timeout=25)
+                res = requests.post(url, headers=headers, json=payload, timeout=35)
                 if res.status_code == 200:
                     content = res.json()["choices"][0]["message"]["content"]
                     return json.loads(content)
             else:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+                parts: List[Dict[str, Any]] = [
+                    {"text": prompt},
+                    {"text": "NEW TARGET PHOTO TO CLASSIFY:"},
+                    {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}},
+                ]
+                for ref_bid, ref_name, ref_pts, ref_b64 in reference_parts[:6]:
+                    parts.append({"text": f"REFERENCE PHOTO FOR KNOWN BUCK `{ref_bid}` ({ref_name} — {ref_pts}):"})
+                    parts.append({"inline_data": {"mime_type": "image/jpeg", "data": ref_b64}})
                 payload = {
-                    "contents": [
-                        {
-                            "parts": [
-                                {"text": prompt},
-                                {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}},
-                            ]
-                        }
-                    ],
+                    "contents": [{"parts": parts}],
                     "generationConfig": {"responseMimeType": "application/json"},
                 }
-                res = requests.post(url, json=payload, timeout=25)
+                res = requests.post(url, json=payload, timeout=35)
                 if res.status_code == 200:
                     candidates = res.json().get("candidates", [])
                     if candidates:
@@ -453,12 +465,19 @@ class StealthCamBuckTracker:
                     existing_s["longitude"] = lon
                     existing_s["heading"] = heading
                     changed = True
+                # Also support retrying AI Vision profiling if an API key is now available and sighting is still unprofiled ("Unknown" points)
+                unprofiled_with_key = (
+                    not existing_s.get("manual_override")
+                    and existing_s.get("points") in (None, "", "Unknown")
+                    and bool(self.ai_api_key or cfg.get("ai_api_key"))
+                )
                 cand_idx = int(existing_s.get("hd_candidate_index", 0))
                 if cand_idx < len(saved_photos):
                     cand_photo = saved_photos[cand_idx]
-                    # Check if HD photo just arrived for the current candidate!
-                    if cand_photo["is_hd"] and not existing_s.get("profiled_on_hd"):
-                        existing_s["hd_status"] = "Completed"
+                    # Check if HD photo just arrived for the current candidate OR if an unprofiled sighting now has an AI key!
+                    if (cand_photo["is_hd"] and not existing_s.get("profiled_on_hd")) or unprofiled_with_key:
+                        if cand_photo["is_hd"]:
+                            existing_s["hd_status"] = "Completed"
                         if not existing_s.get("manual_override") and cand_photo.get("local_path"):
                             hd_ai = self._call_ai_vision_profiler(
                                 cand_photo["local_path"],
@@ -470,12 +489,20 @@ class StealthCamBuckTracker:
                                 existing_s["profile_confidence"] = float(hd_ai.get("profile_confidence", existing_s["profile_confidence"]))
                                 existing_s["antlers_clearly_visible"] = bool(hd_ai.get("antlers_clearly_visible", True))
                                 existing_s["points"] = hd_ai.get("points") or existing_s["points"]
+                                existing_s["left_points"] = hd_ai.get("left_points") or existing_s.get("left_points")
+                                existing_s["right_points"] = hd_ai.get("right_points") or existing_s.get("right_points")
                                 existing_s["beam_spread"] = hd_ai.get("beam_spread") or existing_s["beam_spread"]
                                 existing_s["age_estimate"] = hd_ai.get("age_estimate") or existing_s["age_estimate"]
                                 existing_s["antler_notes"] = hd_ai.get("antler_notes") or existing_s["antler_notes"]
-                                if hd_ai.get("matched_buck_id"):
-                                    existing_s["buck_id"] = hd_ai["matched_buck_id"]
-                        existing_s["profiled_on_hd"] = True
+                                matched_id = hd_ai.get("matched_buck_id")
+                                if matched_id and matched_id in bucks_db:
+                                    existing_s["buck_id"] = matched_id
+                                    existing_s["buck_name"] = bucks_db[matched_id].get("name", existing_s["buck_name"])
+                                elif hd_ai.get("suggested_name") and existing_s.get("buck_name", "").endswith(" Buck"):
+                                    existing_s["buck_name"] = hd_ai["suggested_name"]
+                                    existing_s["buck_id"] = slugify_buck_id(hd_ai["suggested_name"])
+                        if cand_photo["is_hd"]:
+                            existing_s["profiled_on_hd"] = True
                         changed = True
 
                     # Iterative Fallback Escalation:
@@ -680,10 +707,9 @@ class StealthCamBuckTracker:
                     elapsed_label = (
                         f"{round(hours_diff * 60)} mins"
                         if hours_diff < 2
-                        else f"{hours_diff:.1f} hrs"
+                        else (f"{hours_diff:.1f} hrs" if hours_diff < 48 else f"{hours_diff / 24:.1f} days")
                     )
-                    if hours_diff <= 12:
-                        corridors.append(f"{prev_stand} → {st} ({elapsed_label} on {dt_obj.strftime('%b %-d')})")
+                    corridors.append(f"{prev_stand} → {st} ({elapsed_label} on {dt_obj.strftime('%b %-d')})")
                     if prev_lat is not None and prev_lon is not None and lat is not None and lon is not None:
                         import math
                         rad = math.pi / 180.0
@@ -803,10 +829,13 @@ class StealthCamBuckTracker:
                 if m_pts:
                     l_pts, r_pts = int(m_pts.group(1)), int(m_pts.group(2))
 
+            is_verified = bool(existing_b.get("verified_unique") or any(s_item.get("manual_override") for s_item in s_list))
             new_bucks_db[bid] = {
                 "buck_id": bid,
                 "name": name,
                 "custom_name": existing_b.get("custom_name"),
+                "verified_unique": is_verified,
+                "latest_sighting_id": latest.get("sighting_id"),
                 "points": pts_str,
                 "left_points": l_pts,
                 "right_points": r_pts,
@@ -891,6 +920,7 @@ class StealthCamBuckTracker:
 
         bucks[buck_id]["custom_name"] = new_name.strip()
         bucks[buck_id]["name"] = new_name.strip()
+        bucks[buck_id]["verified_unique"] = True
         if points:
             bucks[buck_id]["custom_points"] = points.strip()
         if antler_notes:
@@ -920,15 +950,103 @@ class StealthCamBuckTracker:
         sightings = self.db.setdefault("sightings", {})
         guid_map = self.db.setdefault("guid_to_sighting", {})
         sid = guid_map.get(guid_or_sighting_id, guid_or_sighting_id)
+        # Check for special "__UNIQUE__" action (mark as verified unique buck or split latest sighting)
+        if buck_name.strip().upper() in ("__UNIQUE__", "UNIQUE", "UNIQUE BUCK", "NEW BUCK"):
+            # Case A: guid_or_sighting_id is a specific sighting or photo GUID
+            if sid in sightings:
+                s_obj = sightings[sid]
+                old_bid = s_obj.get("buck_id")
+                old_group = [x for x in sightings.values() if x.get("buck_id") == old_bid]
+                if len(old_group) <= 1:
+                    # Single sighting buck -> mark as verified unique
+                    s_obj["manual_override"] = True
+                    if old_bid and old_bid in self.db.get("bucks", {}):
+                        self.db["bucks"][old_bid]["verified_unique"] = True
+                else:
+                    # Multi-sighting buck -> split this sighting out into its own unique buck
+                    stand = s_obj.get("stand_name", "Stand").title()
+                    idx = 1
+                    new_name = f"{stand} Buck #{idx}"
+                    while slugify_buck_id(new_name) in self.db.get("bucks", {}):
+                        idx += 1
+                        new_name = f"{stand} Buck #{idx}"
+                    new_bid = slugify_buck_id(new_name)
+                    s_obj["buck_id"] = new_bid
+                    s_obj["buck_name"] = new_name
+                    s_obj["manual_override"] = True
+                    self.db.setdefault("bucks", {})[new_bid] = {"name": new_name, "verified_unique": True}
+                self._rebuild_buck_profiles()
+                self.save_db()
+                return True
+
+            # Case B: guid_or_sighting_id is a buck_id or buck_name
+            for bid, b in list(self.db.get("bucks", {}).items()):
+                if bid == guid_or_sighting_id or b.get("name", "").lower() == guid_or_sighting_id.strip().lower():
+                    group = [x for x in sightings.values() if x.get("buck_id") == bid]
+                    group.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+                    if len(group) <= 1:
+                        b["verified_unique"] = True
+                        for x in group:
+                            x["manual_override"] = True
+                    else:
+                        # Split latest sighting into its own unique buck profile
+                        latest_s = group[0]
+                        stand = latest_s.get("stand_name", "Stand").title()
+                        idx = 1
+                        new_name = f"{stand} Buck #{idx}"
+                        while slugify_buck_id(new_name) in self.db.get("bucks", {}):
+                            idx += 1
+                            new_name = f"{stand} Buck #{idx}"
+                        new_bid = slugify_buck_id(new_name)
+                        latest_s["buck_id"] = new_bid
+                        latest_s["buck_name"] = new_name
+                        latest_s["manual_override"] = True
+                        self.db.setdefault("bucks", {})[new_bid] = {"name": new_name, "verified_unique": True}
+                    self._rebuild_buck_profiles()
+                    self.save_db()
+                    return True
+            return False
+
+        # Also check if guid_or_sighting_id is actually a buck_id or buck_name (e.g. from the Buck Registry page)
         if sid not in sightings:
+            source_buck_id = None
+            for bid, b in self.db.get("bucks", {}).items():
+                if bid == guid_or_sighting_id or b.get("name", "").lower() == guid_or_sighting_id.strip().lower():
+                    source_buck_id = bid
+                    break
+            if source_buck_id:
+                target_buck_id = slugify_buck_id(buck_name)
+                target_existing = None
+                for bid, b in self.db.get("bucks", {}).items():
+                    if b.get("name", "").lower() == buck_name.strip().lower() or bid == buck_name.strip():
+                        target_buck_id = bid
+                        buck_name = b.get("name", buck_name.strip())
+                        target_existing = b
+                        break
+                for s_obj in sightings.values():
+                    if s_obj.get("buck_id") == source_buck_id:
+                        s_obj["buck_id"] = target_buck_id
+                        s_obj["buck_name"] = buck_name.strip()
+                        if points:
+                            s_obj["points"] = points.strip()
+                        elif target_existing and target_existing.get("points") and target_existing.get("points") != "Unknown" and s_obj.get("points") in (None, "", "Unknown"):
+                            s_obj["points"] = target_existing["points"]
+                        if antler_notes:
+                            s_obj["antler_notes"] = antler_notes.strip()
+                        s_obj["manual_override"] = True
+                self._rebuild_buck_profiles()
+                self.save_db()
+                return True
             return False
 
         target_buck_id = slugify_buck_id(buck_name)
+        target_existing = None
         # Check if an existing buck has this name
         for bid, b in self.db.get("bucks", {}).items():
             if b.get("name", "").lower() == buck_name.strip().lower() or bid == buck_name.strip():
                 target_buck_id = bid
                 buck_name = b.get("name", buck_name.strip())
+                target_existing = b
                 break
 
         s = sightings[sid]
@@ -936,6 +1054,8 @@ class StealthCamBuckTracker:
         s["buck_name"] = buck_name.strip()
         if points:
             s["points"] = points.strip()
+        elif target_existing and target_existing.get("points") and target_existing.get("points") != "Unknown" and s.get("points") in (None, "", "Unknown"):
+            s["points"] = target_existing["points"]
         if antler_notes:
             s["antler_notes"] = antler_notes.strip()
         s["manual_override"] = True

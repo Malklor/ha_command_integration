@@ -94,15 +94,19 @@ cards:
             label: |
               [[[
                 var a = entity.attributes;
+                var statusBadge = a.verified_unique
+                  ? '<span style="background:rgba(46,204,113,0.22);border:1px solid #2ecc71;color:#2ecc71;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;">✅ Verified Unique Buck</span>'
+                  : '<span style="background:rgba(243,156,18,0.22);border:1px solid #f39c12;color:#f39c12;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;">🆕 Auto-Classified — Reclassify or Mark Unique</span>';
                 var corridor = (a.travel_corridors && a.travel_corridors.length > 0)
                   ? '<div style="margin-top:4px; color:#2ecc71; font-weight:700;">🧭 Corridor: ' + a.travel_corridors[0] + '</div>'
                   : '';
                 return '<div style="text-align:left; font-size:12px; line-height:1.55; color:#ddd;">' +
+                  '<div style="margin-bottom:6px;">' + statusBadge + '</div>' +
                   '<div>📍 <b>Last Seen:</b> ' + (a.last_seen_formatted || 'N/A') + ' at <b style="color:#f39c12;">' + (a.last_seen_stand || 'N/A') + '</b></div>' +
                   '<div>🎯 <b>Sightings:</b> <b style="color:#2ecc71;">' + (a.sightings_count || 0) + ' Unique Sightings</b> (' + (a.total_photos_count || 0) + ' Photos) • <b>Fav Stand:</b> ' + (a.favorite_stand || 'N/A') + '</div>' +
                   '<div>📐 <b>Spread:</b> ' + (a.beam_spread || 'N/A') + ' • <b>Age:</b> ' + (a.age_estimate || 'N/A') + ' • ☀️ <b>' + (a.daylight_pct || 0) + '% Daylight</b></div>' +
                   corridor +
-                  '<div style="margin-top:8px; padding:6px 10px; background:rgba(243,156,18,0.18); border:1px solid rgba(243,156,18,0.45); border-radius:6px; color:#f39c12; font-weight:700; text-align:center;">🔍 Tap to Open Full Buck Dossier & All Photos →</div>' +
+                  '<div style="margin-top:8px; padding:6px 10px; background:rgba(243,156,18,0.18); border:1px solid rgba(243,156,18,0.45); border-radius:6px; color:#f39c12; font-weight:700; text-align:center;">🔍 Tap to Open Full Buck Dossier, Reclassify, or Mark Unique →</div>' +
                   '</div>';
               ]]]
             tap_action:

@@ -26,10 +26,10 @@ _IMAGE_CACHE: "OrderedDict[str, bytes]" = OrderedDict()
 def fetch_and_cache_image(
     url: Optional[str], guid: Optional[str] = None, timeout: int = 10
 ) -> Optional[bytes]:
-    """Fetch image bytes with in-memory caching."""
+    """Fetch image bytes with in-memory caching keyed by exact URL."""
     if not url:
         return None
-    cache_key = guid or url
+    cache_key = url
     if cache_key in _IMAGE_CACHE:
         _IMAGE_CACHE.move_to_end(cache_key)
         return _IMAGE_CACHE[cache_key]
@@ -162,9 +162,23 @@ class StealthCamLatestPhotoCamera(CoordinatorEntity, Camera):
     def camera_image(
         self, width: Optional[int] = None, height: Optional[int] = None
     ) -> Optional[bytes]:
-        """Return bytes of latest photo."""
-        url = self.camera_data.get("latest_thumb_url") or self.camera_data.get("latest_image_url")
+        """Return bytes of latest photo at full SD or HD resolution."""
         guid = self.camera_data.get("latest_image_guid")
+        if guid:
+            media_dir = getattr(self.coordinator.buck_tracker, "media_dir", "/media/stealthcam_bucks")
+            for candidate in (f"{guid}_hd.jpg", f"{guid}.jpg"):
+                local_file = os.path.join(media_dir, candidate)
+                if os.path.exists(local_file):
+                    try:
+                        with open(local_file, "rb") as f:
+                            return f.read()
+                    except Exception:
+                        pass
+        url = (
+            self.camera_data.get("latest_hd_image_url")
+            or self.camera_data.get("latest_image_url")
+            or self.camera_data.get("latest_thumb_url")
+        )
         return fetch_and_cache_image(url, guid=guid)
 
 
@@ -245,7 +259,7 @@ class StealthCamCapturePhotoCamera(CoordinatorEntity, Camera):
     def camera_image(
         self, width: Optional[int] = None, height: Optional[int] = None
     ) -> Optional[bytes]:
-        """Return bytes of this specific capture."""
+        """Return bytes of this specific capture at full SD or HD resolution."""
         guid = self.photo_data.get("guid")
         if guid:
             media_dir = getattr(self.coordinator.buck_tracker, "media_dir", "/media/stealthcam_bucks")
@@ -257,7 +271,11 @@ class StealthCamCapturePhotoCamera(CoordinatorEntity, Camera):
                             return f.read()
                     except Exception:
                         pass
-        url = self.photo_data.get("thumb_url") or self.photo_data.get("image_url")
+        url = (
+            self.photo_data.get("hd_image_url")
+            or self.photo_data.get("image_url")
+            or self.photo_data.get("thumb_url")
+        )
         return fetch_and_cache_image(url, guid=guid)
 
 

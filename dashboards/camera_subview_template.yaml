@@ -100,7 +100,7 @@ cards:
                 show_name: true
                 show_label: true
                 name: "[[[ return entity.attributes.time_str || 'Recent Capture'; ]]]"
-                entity_picture: "[[[ return entity.attributes.thumbnail_url || entity.attributes.image_url; ]]]"
+                entity_picture: "[[[ return entity.attributes.hd_image_url || entity.attributes.image_url || entity.attributes.entity_picture; ]]]"
                 label: |
                   [[[
                     var tag = entity.attributes.tag || '';

@@ -232,7 +232,6 @@ class StealthCamBuckTracker:
                     content = res.json()["choices"][0]["message"]["content"]
                     return json.loads(content)
             else:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
                 parts: List[Dict[str, Any]] = [
                     {"text": prompt},
                     {"text": "NEW TARGET PHOTO TO CLASSIFY:"},
@@ -245,12 +244,17 @@ class StealthCamBuckTracker:
                     "contents": [{"parts": parts}],
                     "generationConfig": {"responseMimeType": "application/json"},
                 }
-                res = requests.post(url, json=payload, timeout=35)
-                if res.status_code == 200:
-                    candidates = res.json().get("candidates", [])
-                    if candidates:
-                        text = candidates[0]["content"]["parts"][0]["text"]
-                        return json.loads(text)
+                for gemini_model in ("gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-2.5-flash"):
+                    try:
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={api_key}"
+                        res = requests.post(url, json=payload, timeout=35)
+                        if res.status_code == 200:
+                            candidates = res.json().get("candidates", [])
+                            if candidates:
+                                text = candidates[0]["content"]["parts"][0]["text"]
+                                return json.loads(text)
+                    except Exception:
+                        continue
         except Exception as ex:
             _LOGGER.warning("AI Vision buck profiling call failed: %s", ex)
         return None

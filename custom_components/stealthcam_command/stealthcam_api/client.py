@@ -171,6 +171,58 @@ def extract_hd_info(c: Dict[str, Any]) -> tuple[bool, Optional[str]]:
     return is_hd, hd_url
 
 
+def extract_video_info(c: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract video / AnimatedThumbnails metadata, frame URLs, and HQ MP4 URL if available."""
+    if not isinstance(c, dict):
+        return {
+            "is_video": False,
+            "media_type": "Photo",
+            "frame_count": 1,
+            "frame_urls": [],
+            "thumb_frame_urls": [],
+            "video_url": None,
+        }
+    cap_type = str(c.get("type") or "CameraPhoto")
+    full_fn = str(c.get("fullFilename") or c.get("filename") or "")
+    ext = str(c.get("fileExtension") or "").upper()
+    img_urls = list(c.get("imageUrls") or [])
+    if not img_urls and c.get("imageUrl"):
+        img_urls = [c["imageUrl"]]
+    thumb_urls = list(c.get("thumbnailUrls") or [])
+    if not thumb_urls and c.get("thumbnailUrl"):
+        thumb_urls = [c["thumbnailUrl"]]
+
+    hq_urls = c.get("hqImageUrls") or []
+    hq_url = c.get("hqImageUrl") or (hq_urls[0] if isinstance(hq_urls, list) and hq_urls else None)
+    if hq_url == "":
+        hq_url = None
+
+    video_url = (
+        c.get("videoUrl")
+        or c.get("hqVideoUrl")
+        or (hq_url if (hq_url and ".mp4" in str(hq_url).lower()) else None)
+    )
+
+    is_video = bool(
+        cap_type in ("AnimatedThumbnails", "CameraVideo", "Video")
+        or full_fn.upper().endswith("_V.JPG")
+        or ext in ("MP4", "MOV", "AVI")
+        or len(img_urls) > 1
+        or video_url
+    )
+    if not video_url and is_video and hq_url:
+        video_url = hq_url
+
+    return {
+        "is_video": is_video,
+        "media_type": cap_type if is_video else "CameraPhoto",
+        "frame_count": max(len(img_urls), 1),
+        "frame_urls": img_urls,
+        "thumb_frame_urls": thumb_urls,
+        "video_url": video_url,
+    }
+
+
 class StealthCamClient:
     """Client for interacting with the Stealth Cam Command Cloud REST API."""
 
@@ -300,7 +352,7 @@ class StealthCamClient:
             return []
 
     def request_hd_photo(self, image_guid: str, device_id: Optional[int] = None, cancel: bool = False) -> bool:
-        """Request (or cancel) full-resolution HQ/HD photo upload for a specific capture."""
+        """Request (or cancel) full-resolution HQ/HD photo or video upload for a specific capture."""
         self.ensure_auth()
         action = "cancel" if cancel else "request"
         endpoints = []
@@ -312,11 +364,14 @@ class StealthCamClient:
             try:
                 res = self.session.patch(url, timeout=self.timeout)
                 if res.status_code in (200, 201, 204):
-                    _LOGGER.info("Successfully sent HQ photo %s for GUID %s (device %s)", action, image_guid, device_id)
+                    _LOGGER.info("Successfully sent HQ %s for GUID %s (device %s)", action, image_guid, device_id)
                     return True
-                if res.status_code == 400 and "HqImageAlreadyRequested" in res.text:
-                    _LOGGER.info("HQ photo already requested for GUID %s", image_guid)
+                if res.status_code == 400 and ("HqImageAlreadyRequested" in res.text or "HqVideoAlreadyRequested" in res.text):
+                    _LOGGER.info("HQ media already requested for GUID %s", image_guid)
                     return True
+                if res.status_code == 400 and "HqVideoSubscriptionLimit" in res.text:
+                    _LOGGER.warning("HQ video subscription limit reached for GUID %s (device %s)", image_guid, device_id)
+                    return False
             except Exception as ex:
                 _LOGGER.warning("Attempt to %s HQ photo via %s failed: %s", action, url, ex)
         return False
@@ -428,6 +483,8 @@ class StealthCamClient:
             raw_buck_photos_count = 0
             raw_doe_photos_count = 0
             raw_person_photos_count = 0
+            video_captures_count = 0
+            video_24h_count = 0
             morning_hits = 0
             evening_hits = 0
             midday_hits = 0
@@ -451,6 +508,9 @@ class StealthCamClient:
 
             prev_tag: Optional[str] = None
             for c in dev_captures:
+                v_info = extract_video_info(c)
+                if v_info["is_video"]:
+                    video_captures_count += 1
                 tag = extract_species_tag(c, active_tags)
                 is_buck = (tag == "buck")
                 is_doe = (tag == "doe")
@@ -534,6 +594,8 @@ class StealthCamClient:
 
                 if is_within_24h:
                     captures_24h_count += 1
+                    if v_info["is_video"]:
+                        video_24h_count += 1
                     if is_buck and is_new_consecutive_run:
                         buck_hits_24h += 1
                     elif is_doe and is_new_consecutive_run:
@@ -580,6 +642,7 @@ class StealthCamClient:
                 is_person = (tag == "person")
                 buck_score = extract_buck_score(c)
                 is_hd, hd_url = extract_hd_info(c)
+                v_info = extract_video_info(c)
 
                 time_str = "Recent"
                 hour = 0
@@ -591,7 +654,7 @@ class StealthCamClient:
                     except Exception:
                         time_str = str(cdt)[:16]
                 p_data = {
-                    "image_url": hd_url if (is_hd and hd_url) else (img_urls[0] if img_urls else None),
+                    "image_url": hd_url if (is_hd and hd_url and not v_info["is_video"]) else (img_urls[0] if img_urls else None),
                     "thumb_url": thumb_urls[0] if thumb_urls else (img_urls[0] if img_urls else None),
                     "time_str": time_str,
                     "created_at": cdt,
@@ -604,6 +667,12 @@ class StealthCamClient:
                     "buck_score": buck_score,
                     "is_hd": is_hd,
                     "hd_image_url": hd_url,
+                    "is_video": v_info["is_video"],
+                    "media_type": v_info["media_type"],
+                    "frame_count": v_info["frame_count"],
+                    "frame_urls": v_info["frame_urls"],
+                    "thumb_frame_urls": v_info["thumb_frame_urls"],
+                    "video_url": v_info["video_url"],
                     "guid": guid,
                     "hour": hour,
                 }
@@ -618,6 +687,7 @@ class StealthCamClient:
             rotate_angle = dev.get("rotateAngle")
             heading_cardinal = degrees_to_cardinal(rotate_angle) if rotate_angle is not None else "N/A"
             latest_is_hd, latest_hd_url = extract_hd_info(latest_img)
+            latest_v_info = extract_video_info(latest_img)
             latest_buck_score = extract_buck_score(latest_img)
 
             result[name] = {
@@ -641,13 +711,18 @@ class StealthCamClient:
                 "sd_card_free_space": status.get("sdCardFreeSpace", 0),
                 "last_sync_unix": status.get("lastSyncDateUnixTime"),
                 "firmware_version": status.get("firmwareVersion", "Unknown"),
-                # Photo & Environmental Telemetry
-                "latest_image_url": latest_hd_url if (latest_is_hd and latest_hd_url) else latest_img.get("imageUrl"),
+                # Photo, Video & Environmental Telemetry
+                "latest_image_url": latest_hd_url if (latest_is_hd and latest_hd_url and not latest_v_info["is_video"]) else latest_img.get("imageUrl"),
                 "latest_thumb_url": latest_img.get("thumbnailUrl"),
                 "latest_image_guid": latest_img.get("imageGuid"),
                 "latest_buck_score": latest_buck_score,
                 "latest_is_hd": latest_is_hd,
                 "latest_hd_image_url": latest_hd_url,
+                "latest_is_video": latest_v_info["is_video"],
+                "latest_media_type": latest_v_info["media_type"],
+                "latest_frame_count": latest_v_info["frame_count"],
+                "latest_frame_urls": latest_v_info["frame_urls"],
+                "latest_video_url": latest_v_info["video_url"],
                 "temperature": latest_img.get("temperature"),
                 "pressure": latest_img.get("pressure"),
                 "pressure_tendency": latest_img.get("pressureTendency", "Steady"),
@@ -660,6 +735,8 @@ class StealthCamClient:
                 "buck_hits_count": buck_hits_count,
                 "doe_hits_count": doe_hits_count,
                 "person_hits_count": person_hits_count,
+                "video_captures_count": video_captures_count,
+                "video_24h_count": video_24h_count,
                 "raw_buck_photos_count": raw_buck_photos_count,
                 "raw_doe_photos_count": raw_doe_photos_count,
                 "raw_person_photos_count": raw_person_photos_count,

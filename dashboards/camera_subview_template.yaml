@@ -99,14 +99,16 @@ cards:
                 show_entity_picture: true
                 show_name: true
                 show_label: true
-                name: "[[[ return entity.attributes.time_str || 'Recent Capture'; ]]]"
-                entity_picture: "[[[ return entity.attributes.hd_image_url || entity.attributes.image_url || entity.attributes.entity_picture; ]]]"
+                name: "[[[ return (entity.attributes.time_str || 'Recent Capture') + (entity.attributes.is_video ? ' 🎥' : '') + (entity.attributes.is_hd ? ' 💎' : ''); ]]]"
+                entity_picture: "[[[ return entity.attributes.entity_picture || entity.attributes.hd_image_url || entity.attributes.image_url; ]]]"
                 label: |
                   [[[
                     var tag = entity.attributes.tag || '';
-                    if (entity.attributes.is_buck || tag === 'buck') return '✨ VERIFIED BUCK';
-                    if (entity.attributes.is_doe || tag === 'doe') return '🦌 VERIFIED DOE';
-                    if (entity.attributes.is_person || tag === 'person') return '🚨 👤 HUMAN ACTIVITY';
+                    var vid = entity.attributes.is_video ? (' • 🎥 ' + (entity.attributes.frame_count || 3) + '-Frame Video') : '';
+                    if (entity.attributes.is_buck || tag === 'buck') return '✨ VERIFIED BUCK' + vid;
+                    if (entity.attributes.is_doe || tag === 'doe') return '🦌 VERIFIED DOE' + vid;
+                    if (entity.attributes.is_person || tag === 'person') return '🚨 👤 HUMAN ACTIVITY' + vid;
+                    if (entity.attributes.is_video) return '🎥 ' + (entity.attributes.frame_count || 3) + '-FRAME VIDEO • Tap to Play';
                     return '🔍 Tap for Photo';
                   ]]]
                 tap_action:

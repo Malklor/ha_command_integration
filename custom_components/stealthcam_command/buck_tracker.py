@@ -10,9 +10,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 
 try:
-    from .stealthcam_api.client import StealthCamClient, degrees_to_cardinal, extract_hd_info
+    from .stealthcam_api.client import StealthCamClient, degrees_to_cardinal, extract_hd_info, extract_video_info
 except ImportError:
-    from stealthcam_api.client import StealthCamClient, degrees_to_cardinal, extract_hd_info
+    from stealthcam_api.client import StealthCamClient, degrees_to_cardinal, extract_hd_info, extract_video_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -285,25 +285,35 @@ class StealthCamBuckTracker:
 
             existing_s = sightings_db.get(sighting_id)
 
-            # Archive every photo in this consecutive burst to /media/stealthcam_bucks/
+            # Archive every photo (and all video keyframes/MP4s) in this consecutive burst to /media/stealthcam_bucks/
             saved_photos: List[Dict[str, Any]] = []
             for idx, cap in enumerate(captures):
                 c_guid = cap.get("imageGuid") or cap.get("guid") or f"{hero_guid}_{idx}"
                 is_hd, hd_url = extract_hd_info(cap)
+                v_info = extract_video_info(cap)
+                is_video = v_info["is_video"]
+                frame_urls = v_info["frame_urls"]
                 std_url = (cap.get("imageUrls") or [None])[0] or cap.get("imageUrl")
                 thumb_url = (cap.get("thumbnailUrls") or [None])[0] or cap.get("thumbnailUrl") or std_url
                 hq_status = cap.get("hqPhotoStatus", "NotRequested")
 
                 std_filename = f"{c_guid}.jpg"
-                hd_filename = f"{c_guid}_hd.jpg"
+                hd_filename = f"{c_guid}_hd.mp4" if (is_video and hd_url and ".mp4" in str(hd_url).lower()) else f"{c_guid}_hd.jpg"
 
                 local_std = self._download_to_media(std_url, std_filename)
+                local_frames: List[str] = []
+                if is_video and len(frame_urls) > 1:
+                    for f_i, f_url in enumerate(frame_urls, start=1):
+                        lf = self._download_to_media(f_url, f"{c_guid}_f{f_i}.jpg")
+                        if lf:
+                            local_frames.append(lf)
+
                 local_hd = None
                 if is_hd and hd_url:
                     local_hd = self._download_to_media(hd_url, hd_filename, force=True)
 
-                best_local = local_hd or local_std
-                best_filename = hd_filename if local_hd else std_filename
+                best_local = (local_hd if (local_hd and not hd_filename.endswith(".mp4")) else None) or local_std
+                best_filename = hd_filename if (local_hd and not hd_filename.endswith(".mp4")) else std_filename
 
                 saved_photos.append({
                     "guid": c_guid,
@@ -313,11 +323,18 @@ class StealthCamBuckTracker:
                     "longitude": lon,
                     "heading": heading,
                     "is_hd": bool(local_hd or is_hd),
+                    "is_video": is_video,
+                    "media_type": v_info["media_type"],
+                    "frame_count": v_info["frame_count"],
+                    "frame_urls": frame_urls,
+                    "local_frames": local_frames,
+                    "video_url": v_info["video_url"],
+                    "local_video_path": local_hd if (local_hd and hd_filename.endswith(".mp4")) else None,
                     "hq_photo_status": hq_status,
                     "local_path": best_local,
                     "media_filename": best_filename,
                     "media_source_id": f"media-source://media_source/local/stealthcam_bucks/{best_filename}",
-                    "cloud_image_url": hd_url if (is_hd and hd_url) else std_url,
+                    "cloud_image_url": hd_url if (is_hd and hd_url and not is_video) else std_url,
                     "cloud_thumb_url": thumb_url,
                 })
 

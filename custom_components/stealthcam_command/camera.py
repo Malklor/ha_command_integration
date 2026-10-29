@@ -1,9 +1,15 @@
 """Camera platform for Stealth Cam Command integration."""
 from collections import OrderedDict
+import io
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 import requests
+
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
 from homeassistant.components.camera import Camera
 from homeassistant.config_entries import ConfigEntry
@@ -43,6 +49,44 @@ def fetch_and_cache_image(
         _LOGGER.warning("HTTP %s when fetching photo from %s", res.status_code, url[:60])
     except Exception as ex:
         _LOGGER.error("Failed fetching photo bytes from %s: %s", url[:60], ex)
+    return None
+
+
+def build_animated_gif_from_urls(
+    frame_urls: List[str], guid: Optional[str] = None, duration_ms: int = 650
+) -> Optional[bytes]:
+    """Build an animated GIF from a 3-frame Stealth Cam AnimatedThumbnails video burst."""
+    if not frame_urls or len(frame_urls) < 2 or Image is None:
+        return None
+    cache_key = f"gif::{guid or frame_urls[0]}"
+    if cache_key in _IMAGE_CACHE:
+        _IMAGE_CACHE.move_to_end(cache_key)
+        return _IMAGE_CACHE[cache_key]
+    try:
+        pil_frames = []
+        for u in frame_urls:
+            fb = fetch_and_cache_image(u)
+            if fb:
+                im = Image.open(io.BytesIO(fb)).convert("RGB")
+                pil_frames.append(im)
+        if len(pil_frames) >= 2:
+            out = io.BytesIO()
+            pil_frames[0].save(
+                out,
+                format="GIF",
+                save_all=True,
+                append_images=pil_frames[1:],
+                duration=duration_ms,
+                loop=0,
+            )
+            gif_bytes = out.getvalue()
+            if gif_bytes:
+                _IMAGE_CACHE[cache_key] = gif_bytes
+                if len(_IMAGE_CACHE) > MAX_CACHE_SIZE:
+                    _IMAGE_CACHE.popitem(last=False)
+                return gif_bytes
+    except Exception as ex:
+        _LOGGER.debug("Failed building animated GIF for %s: %s", guid, ex)
     return None
 
 
@@ -148,10 +192,17 @@ class StealthCamLatestPhotoCamera(CoordinatorEntity, Camera):
             "buck_hits_count": self.camera_data.get("buck_hits_count", 0),
             "doe_hits_count": self.camera_data.get("doe_hits_count", 0),
             "person_hits_count": self.camera_data.get("person_hits_count", 0),
+            "video_captures_count": self.camera_data.get("video_captures_count", 0),
+            "video_24h_count": self.camera_data.get("video_24h_count", 0),
             "latest_buck_score": self.camera_data.get("latest_buck_score"),
             "buck_score": self.camera_data.get("latest_buck_score"),
             "is_hd": self.camera_data.get("latest_is_hd", False),
             "hd_image_url": self.camera_data.get("latest_hd_image_url"),
+            "is_video": self.camera_data.get("latest_is_video", False),
+            "media_type": self.camera_data.get("latest_media_type", "CameraPhoto"),
+            "frame_count": self.camera_data.get("latest_frame_count", 1),
+            "frame_urls": self.camera_data.get("latest_frame_urls", []),
+            "video_url": self.camera_data.get("latest_video_url"),
             "peak_window": self.camera_data.get("peak_window", "Variable"),
             "recent_photos": self.camera_data.get("recent_photos", []),
             "buck_photos": self.camera_data.get("buck_photos", []),
@@ -162,8 +213,14 @@ class StealthCamLatestPhotoCamera(CoordinatorEntity, Camera):
     def camera_image(
         self, width: Optional[int] = None, height: Optional[int] = None
     ) -> Optional[bytes]:
-        """Return bytes of latest photo at full SD or HD resolution."""
+        """Return bytes of latest photo (or animated GIF for 3-frame video captures)."""
         guid = self.camera_data.get("latest_image_guid")
+        is_video = self.camera_data.get("latest_is_video", False)
+        frame_urls = self.camera_data.get("latest_frame_urls", [])
+        if is_video and len(frame_urls) >= 2:
+            gif_bytes = build_animated_gif_from_urls(frame_urls, guid=guid)
+            if gif_bytes:
+                return gif_bytes
         if guid:
             media_dir = getattr(self.coordinator.buck_tracker, "media_dir", "/media/stealthcam_bucks")
             for candidate in (f"{guid}_hd.jpg", f"{guid}.jpg"):
@@ -175,7 +232,7 @@ class StealthCamLatestPhotoCamera(CoordinatorEntity, Camera):
                     except Exception:
                         pass
         url = (
-            self.camera_data.get("latest_hd_image_url")
+            (self.camera_data.get("latest_hd_image_url") if not is_video else None)
             or self.camera_data.get("latest_image_url")
             or self.camera_data.get("latest_thumb_url")
         )
@@ -251,6 +308,11 @@ class StealthCamCapturePhotoCamera(CoordinatorEntity, Camera):
             "sighting_id": p.get("sighting_id"),
             "hq_photo_status": p.get("hq_photo_status", "NotRequested"),
             "is_hd": p.get("is_hd", False),
+            "is_video": p.get("is_video", False),
+            "media_type": p.get("media_type", "CameraPhoto"),
+            "frame_count": p.get("frame_count", 1),
+            "frame_urls": p.get("frame_urls", []),
+            "video_url": p.get("video_url"),
             "hour": p.get("hour", 0),
             "index": self.index + 1,
             "stand": self.camera_name,
@@ -259,8 +321,14 @@ class StealthCamCapturePhotoCamera(CoordinatorEntity, Camera):
     def camera_image(
         self, width: Optional[int] = None, height: Optional[int] = None
     ) -> Optional[bytes]:
-        """Return bytes of this specific capture at full SD or HD resolution."""
+        """Return bytes of this specific capture (or animated GIF for 3-frame video captures)."""
         guid = self.photo_data.get("guid")
+        is_video = self.photo_data.get("is_video", False)
+        frame_urls = self.photo_data.get("frame_urls", [])
+        if is_video and len(frame_urls) >= 2:
+            gif_bytes = build_animated_gif_from_urls(frame_urls, guid=guid)
+            if gif_bytes:
+                return gif_bytes
         if guid:
             media_dir = getattr(self.coordinator.buck_tracker, "media_dir", "/media/stealthcam_bucks")
             for candidate in (f"{guid}_hd.jpg", f"{guid}.jpg"):
@@ -272,7 +340,7 @@ class StealthCamCapturePhotoCamera(CoordinatorEntity, Camera):
                     except Exception:
                         pass
         url = (
-            self.photo_data.get("hd_image_url")
+            (self.photo_data.get("hd_image_url") if not is_video else None)
             or self.photo_data.get("image_url")
             or self.photo_data.get("thumb_url")
         )

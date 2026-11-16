@@ -50,7 +50,7 @@ cards:
           - 🌇 **Evening (4–8 PM):** `{{ state_attr('sensor.stealthcam_property_movement', 'evening_pct') | default(14) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'evening_hits') | default(0) }} hits)
           - 🌙 **Night (8 PM–5 AM):** `{{ state_attr('sensor.stealthcam_property_movement', 'night_pct') | default(53) }}%` ({{ state_attr('sensor.stealthcam_property_movement', 'night_hits') | default(0) }} hits)
 
-  # 2. Dynamic Auto-Discovery of All Trail Cameras
+  # 2. Dynamic Auto-Discovery of All Trail Cameras with Auto-Healing & Resilient Stand Navigation
   - type: custom:auto-entities
     card:
       type: grid
@@ -60,38 +60,118 @@ cards:
       include:
         - entity_id: "camera.stealth_cam_*_trail_cam"
           options:
-            type: custom:button-card
-            entity: this.entity_id
-            show_entity_picture: true
-            show_name: true
-            show_label: true
-            name: "[[[ return entity.attributes.friendly_name || 'Trail Cam'; ]]]"
-            entity_picture: "[[[ return entity.attributes.image_url || entity.attributes.entity_picture; ]]]"
-            label: "[[[ return '🌡️ ' + (entity.attributes.temperature || '--') + '°F  •  🔋 ' + (entity.attributes.battery_level || '--') + '%'; ]]]"
-            tap_action:
-              action: more-info
-            styles:
-              card:
-                - border-radius: 12px
-                - overflow: hidden
-                - padding: 0
-                - border: none
-                - background: var(--card-background-color, #1c1c1e)
-                - cursor: pointer
-              entity_picture:
-                - width: 100%
-                - height: 200px
-                - object-fit: cover
-                - border-radius: 12px 12px 0 0
-                - background: "#111"
-              name:
-                - font-size: 15px
-                - font-weight: 700
-                - color: "#fff"
-                - padding: 8px 12px 0px 12px
-                - text-align: left
-              label:
-                - font-size: 12px
-                - color: "#a0a0a0"
-                - padding: 2px 12px 8px 12px
-                - text-align: left
+            type: custom:vertical-stack-in-card
+            cards:
+              - type: custom:button-card
+                entity: this.entity_id
+                show_entity_picture: true
+                show_name: false
+                show_label: false
+                show_icon: false
+                entity_picture: "[[[ return entity.attributes.entity_picture || entity.attributes.hd_image_url || entity.attributes.image_url; ]]]"
+                tap_action:
+                  action: more-info
+                styles:
+                  card:
+                    - border-radius: 12px 12px 0 0
+                    - overflow: hidden
+                    - padding: 0
+                    - border: none
+                    - cursor: pointer
+                  entity_picture:
+                    - width: 100%
+                    - height: 200px
+                    - object-fit: cover
+                    - border-radius: 12px 12px 0 0
+                    - background: "#111"
+              - type: custom:button-card
+                entity: this.entity_id
+                name: "📸 Photo Reel & Analytics"
+                icon: "mdi:image-multiple"
+                show_name: true
+                show_icon: true
+                tap_action:
+                  action: navigate
+                  navigation_path: >-
+                    [[[
+                      var eid = entity.entity_id;
+                      var slug = eid.replace("camera.stealth_cam_", "").replace("_trail_cam", "");
+                      var parts = slug.split("_");
+                      var half = Math.floor(parts.length / 2);
+                      if (parts.length % 2 === 0 && parts.slice(0, half).join("_") === parts.slice(half).join("_")) {
+                        slug = parts.slice(0, half).join("_");
+                      }
+                      return "/lovelace-basement/stand-" + slug;
+                    ]]]
+                styles:
+                  card:
+                    - border-radius: 0px
+                    - padding: 8px 12px
+                    - background: rgba(82, 148, 226, 0.12)
+                    - border-top: 1px solid rgba(82, 148, 226, 0.2)
+                    - border-bottom: 1px solid rgba(82, 148, 226, 0.2)
+                    - cursor: pointer
+                  name:
+                    - font-size: 13px
+                    - font-weight: 600
+                    - color: var(--primary-color, #5294e2)
+                    - text-align: center
+                  grid:
+                    - grid-template-columns: 24px 1fr
+                    - grid-template-areas: "'i n'"
+              - type: custom:button-card
+                entity: this.entity_id
+                show_entity_picture: false
+                show_icon: true
+                icon: "[[[ return entity.attributes.icon || 'mdi:cctv'; ]]]"
+                show_name: true
+                show_label: true
+                name: >-
+                  [[[
+                    var fn = entity.attributes.friendly_name || "Trail Cam";
+                    var clean = fn.replace("Stealth Cam ", "").replace(" Trail Cam", "").trim();
+                    var words = clean.split(" ");
+                    var half = Math.floor(words.length / 2);
+                    if (words.length % 2 === 0 && words.slice(0, half).join(" ") === words.slice(half).join(" ")) {
+                      clean = words.slice(0, half).join(" ");
+                    }
+                    return clean;
+                  ]]]
+                label: >-
+                  [[[
+                    var h = (entity.attributes.last_positive_hit || "No recent hit");
+                    var t = entity.attributes.temperature ? ("🌡️ " + entity.attributes.temperature + "°F  •  ") : "";
+                    var b = (entity.attributes.battery_level !== undefined && entity.attributes.battery_level !== null) ? ("🔋 " + entity.attributes.battery_level + "%") : "";
+                    var bucks = entity.attributes.buck_hits_count;
+                    var buckStr = (bucks && bucks !== 0) ? ("  •  🦌 " + bucks + " Buck" + (bucks > 1 ? "s" : "")) : "";
+                    return "🎯 " + h + buckStr + "<br>" + t + b;
+                  ]]]
+                tap_action:
+                  action: more-info
+                styles:
+                  card:
+                    - border-radius: 0 0 12px 12px
+                    - padding: 8px 12px 10px 12px
+                    - background: var(--card-background-color, #1c1c1e)
+                    - border: none
+                    - cursor: pointer
+                  icon:
+                    - color: var(--primary-color, #5294e2)
+                    - width: 26px
+                    - height: 26px
+                  name:
+                    - font-size: 16px
+                    - font-weight: 700
+                    - letter-spacing: 0.5px
+                    - color: "#fff"
+                    - text-align: left
+                  label:
+                    - font-size: 12px
+                    - line-height: 1.4
+                    - font-weight: 500
+                    - color: "#a0a0a0"
+                    - padding-top: 2px
+                    - text-align: left
+                  grid:
+                    - grid-template-columns: 32px 1fr
+                    - grid-template-areas: "'i n' 'i l'"
